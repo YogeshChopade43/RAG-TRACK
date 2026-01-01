@@ -1,8 +1,5 @@
-import json
-import os
-from datetime import datetime
-
-METADATA_BASE_PATH = "data/metadata"
+import json, os
+from app.core.paths import METADATA_DIR
 
 def create_raw_metadata(
     document_id: str,
@@ -11,7 +8,7 @@ def create_raw_metadata(
     size_mb: float,
     storage_path: str
 ):
-    os.makedirs(METADATA_BASE_PATH, exist_ok=True)
+    os.makedirs(METADATA_DIR, exist_ok=True)
 
     metadata = {
         "document_id": document_id,
@@ -19,16 +16,15 @@ def create_raw_metadata(
         "source_type": source_type,
         "size_mb": size_mb,
         "storage_path": storage_path,
-        "status": "RAW_UPLOADED",
-        "uploaded_at": datetime.utcnow().isoformat()
+        "status": "RAW_UPLOADED"
     }
 
     metadata_path = os.path.join(
-        METADATA_BASE_PATH,
+        METADATA_DIR,
         f"{document_id}.json"
     )
 
     with open(metadata_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
 
-    return metadata
+    return metadata_path  

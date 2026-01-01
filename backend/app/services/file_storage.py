@@ -1,13 +1,11 @@
+from app.core.paths import RAW_DIR
 import os
 
-BASE_PATH = "data/raw"
-
-def save_raw_file(document_id: str, filename: str, content: bytes):
-    dir_path = os.path.join(BASE_PATH, document_id)
+def save_raw_file(document_id, filename, content):
+    dir_path = os.path.join(RAW_DIR, document_id)
     os.makedirs(dir_path, exist_ok=True)
 
     file_path = os.path.join(dir_path, filename)
-
     with open(file_path, "wb") as f:
         f.write(content)
 

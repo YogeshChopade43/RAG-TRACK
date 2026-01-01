@@ -2,10 +2,12 @@ from fastapi import APIRouter, UploadFile, HTTPException
 import uuid
 
 from app.core.config import ALLOWED_EXTENSIONS, MAX_FILE_SIZE_MB
-from services.file_storage import save_raw_file
-from services.metadata_services import create_raw_metadata
+from app.services.file_storage import save_raw_file
+from app.services.metadata_services import create_raw_metadata
+from app.services.parsing_service import ParsingService
 
 router = APIRouter()
+parsing_service = ParsingService()
 
 @router.post("/")
 async def ingest(file: UploadFile):
@@ -35,7 +37,11 @@ async def ingest(file: UploadFile):
         filename=file.filename,
         source_type=extension,
         size_mb=round(size_mb, 2),
-        storage_path=storage_path
+        storage_path=storage_path,
     )
+
+
+    # AUTO-TRIGGER PARSING
+    parsing_service.parse(document_id)
 
     return metadata

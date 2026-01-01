@@ -37,8 +37,7 @@ Thumbs.db
 # =========================
 # RAG Project Data (IMPORTANT)
 # =========================
-backend/data/raw/
-backend/data/metadata/
+data/
 
 # =========================
 # Logs
