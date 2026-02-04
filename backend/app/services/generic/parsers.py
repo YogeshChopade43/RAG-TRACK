@@ -17,3 +17,12 @@ def parse_txt(file_path: str):
 
 def normalize_text(text: str) -> str:
     return " ".join(text.split())
+
+def normalize_pages(pages):
+    normalized = []
+    for p in pages:
+        if isinstance(p, bytes):
+            normalized.append(p.decode("utf-8", errors="ignore"))
+        else:
+            normalized.append(str(p))
+    return normalized

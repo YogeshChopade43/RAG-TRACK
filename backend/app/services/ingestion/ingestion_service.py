@@ -1,36 +1,40 @@
-from fastapi import APIRouter, UploadFile, HTTPException
-import uuid
+from app.services.parsing.parsing_service import ParsingService
+# from app.services.chunking.chunking_service import ChunkingService
+# from app.services.embedding.embedding_service import EmbeddingService
+# from app.services.storage.vector_store import VectorStore
 
-from app.core.config import ALLOWED_EXTENSIONS, MAX_FILE_SIZE_MB
-from backend.app.services.generic.file_storage import save_raw_file
-from backend.app.services.parsing.parsing_service import ParsingService
-
-router = APIRouter()
 parsing_service = ParsingService()
+# chunking_service = ChunkingService()
+# embedding_service = EmbeddingService()
+# vector_store = VectorStore()
 
-@router.post("/")
-async def ingest(file: UploadFile):
-    if not file:
-        raise HTTPException(status_code=400, detail="No file provided")
+def ingest(document_id: str, filename: str):
+    """
+    Orchestrates the ingestion pipeline for a document.
+    Input: document_id (already uploaded & stored)
+    """
+    doc_id = document_id
+    fname = filename
 
-    extension = file.filename.split(".")[-1].lower()
-    if extension not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
+    # 1. Parse raw file into text
+    text = parsing_service.parse(doc_id)
+    print(f"Parsed text for document {doc_id}: {text}")
 
-    content = await file.read()
-    size_mb = len(content) / (1024 * 1024)
+"""
+    # 2. Chunk parsed text
+    chunks = chunking_service.chunk(text)
 
-    if size_mb > MAX_FILE_SIZE_MB:
-        raise HTTPException(status_code=400, detail="File too large")
+    # 3. Generate embeddings
+    embeddings = embedding_service.embed(chunks)
 
-    document_id = str(uuid.uuid4())
-
-    storage_path = save_raw_file(
+    # 4. Store embeddings with metadata
+    vector_store.store(
         document_id=document_id,
-        filename=file.filename,
-        content=content
+        chunks=chunks,
+        embeddings=embeddings
     )
-
-    parsing_service.parse(document_id)
-
-    return {"document_id": document_id, "storage_path": storage_path}
+"""
+    # return {
+    #     "document_id": doc_id,
+    #     "chunks": len(chunks)
+    # }

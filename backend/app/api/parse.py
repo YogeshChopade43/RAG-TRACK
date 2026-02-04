@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from backend.app.services.parsing.parsing_service import ParsingService
+from app.services.parsing.parsing_service import ParsingService
 
 router = APIRouter()
 service = ParsingService()
