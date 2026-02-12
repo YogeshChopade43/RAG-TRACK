@@ -1,7 +1,8 @@
 import json, os
-from app.services.generic.parsers import parse_pdf, parse_txt
+from app.services.generic.parsers.pdf_parser import parse_pdf
+from app.services.generic.parsers.txt_parser import parse_txt
 from app.core.paths import PARSED_DIR, RAW_DIR
-from app.services.generic.parsers import normalize_pages
+from app.services.generic.utils.parser_utils import normalize_pages
 
 
 PARSED_BASE = PARSED_DIR
