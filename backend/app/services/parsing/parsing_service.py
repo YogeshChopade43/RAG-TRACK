@@ -34,7 +34,8 @@ class ParsingService:
         else:
             raise ValueError(f"Unsupported source type: {ext}")
         
-        pages = normalize_pages(pages)
+        text = normalize_pages(pages)
+    #    text = " ".join([p["text"] for p in pages])
 
         print("Parsing completed.")
 
@@ -51,6 +52,7 @@ class ParsingService:
 
         return {
             "document_id": document_id,
-            "pages": len(pages),
-            "source_file": filename
+            "pages": pages,                 # Includes page numbers and text, pages.append({"page_number": i + 1,"text": text})
+            "file_name": filename,
+            "text": text        
         }

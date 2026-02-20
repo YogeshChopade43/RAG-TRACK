@@ -22,4 +22,4 @@ app.include_router(ingest.router, prefix="/ingest")
 def health():
     return {"status": "ok"}
 
-app.include_router(parse.router, prefix="/parse")
+# app.include_router(parse.router, prefix="/parse")

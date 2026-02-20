@@ -17,8 +17,8 @@ async def ingest_document(file: UploadFile):
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    content = await file.read()
-    size_mb = len(content) / (1024 * 1024)
+    raw_content = await file.read()
+    size_mb = len(raw_content) / (1024 * 1024)
 
     if size_mb > MAX_FILE_SIZE_MB:
         raise HTTPException(status_code=400, detail="File too large")
@@ -28,15 +28,14 @@ async def ingest_document(file: UploadFile):
     save_raw_file(
         document_id=document_id,
         filename=file.filename,
-        content=content
+        content=raw_content
     )
 
     # Trigger ingestion pipeline
-    ingest(document_id,filename=file.filename)
+    parsed_text = ingest(document_id,filename=file.filename)            # Parsed test returning for now, Later will return full data with chunks, embeddings, etc.
 
     return {
         "document_id": document_id,
         "filename": file.filename,
-        "status": "INGESTED",
-        "content": content.decode("utf-8", errors="ignore")
+        "content": parsed_text
     }

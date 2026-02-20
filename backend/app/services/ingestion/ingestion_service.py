@@ -17,8 +17,12 @@ def ingest(document_id: str, filename: str):
     fname = filename
 
     # 1. Parse raw file into text
-    text = parsing_service.parse(doc_id)
-    print(f"Parsed text for document {doc_id}: {text}")
+    parsed_load = parsing_service.parse(doc_id)
+    parsed_text = parsed_load["text"]
+
+    print(f"Parsed text for document {doc_id}: {parsed_text}")
+
+    return parsed_text                                          # For now, just return the parsed text.
 
 """
     # 2. Chunk parsed text
@@ -27,14 +31,18 @@ def ingest(document_id: str, filename: str):
     # 3. Generate embeddings
     embeddings = embedding_service.embed(chunks)
 
-    # 4. Store embeddings with metadata
+    # 4. Store embeddings in vector database
     vector_store.store(
         document_id=document_id,
         chunks=chunks,
         embeddings=embeddings
     )
 """
+
     # return {
-    #     "document_id": doc_id,
-    #     "chunks": len(chunks)
+    #     "parsed": parsed_load,
+    #     "chunks": chunked_load,
+    #     "embeddings": embedding_load,
+    #     "storage": storage_load
     # }
+    
