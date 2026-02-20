@@ -37,5 +37,6 @@ async def ingest_document(file: UploadFile):
     return {
         "document_id": document_id,
         "filename": file.filename,
-        "content": content
+        "status": "INGESTED",
+        "content": content.decode("utf-8", errors="ignore")
     }
