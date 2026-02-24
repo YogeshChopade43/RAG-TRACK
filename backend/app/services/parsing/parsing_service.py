@@ -24,7 +24,6 @@ class ParsingService:
 
         ext = filename.split(".")[-1].lower()
 
-        #TODO: Fix PDF parsing, currently failing on test PDF document. May need to switch to a different library or debug the current one.
         if ext == "pdf":                                
             print(f"Parsing PDF document {filename}")
             pages = parse_pdf(raw_path)
@@ -34,7 +33,8 @@ class ParsingService:
         else:
             raise ValueError(f"Unsupported source type: {ext}")
         
-        text = normalize_pages(pages)
+#        pages = normalize_pages(pages)
+        print(pages)
     #    text = " ".join([p["text"] for p in pages])
 
         print("Parsing completed.")
@@ -43,6 +43,7 @@ class ParsingService:
         out_path = os.path.join(PARSED_BASE, f"{document_id}.json")
 
         payload = {
+            "filename": filename,
             "document_id": document_id,
             "pages": pages
         }
@@ -51,8 +52,7 @@ class ParsingService:
             json.dump(payload, f, indent=2)
 
         return {
-            "document_id": document_id,
-            "pages": pages,                 # Includes page numbers and text, pages.append({"page_number": i + 1,"text": text})
             "file_name": filename,
-            "text": text        
+            "document_id": document_id,
+            "pages": pages                 # Includes page numbers and text, pages.append({"page_number": i + 1,"text": text})
         }

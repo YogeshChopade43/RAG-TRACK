@@ -32,10 +32,10 @@ async def ingest_document(file: UploadFile):
     )
 
     # Trigger ingestion pipeline
-    parsed_text = ingest(document_id,filename=file.filename)            # Parsed test returning for now, Later will return full data with chunks, embeddings, etc.
+    content = ingest(document_id,filename=file.filename)            # Parsed test returning for now, Later will return full data with chunks, embeddings, etc.
 
     return {
-        "document_id": document_id,
         "filename": file.filename,
-        "content": parsed_text
+        "document_id": document_id,
+        "content": content
     }

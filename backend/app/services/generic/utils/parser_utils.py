@@ -16,6 +16,18 @@ def normalize_pages(pages):
             normalized.append(str(p))
     return normalized
 
+def get_page_text(pages):
+    res = []
+  
+    for page in pages:
+            page_text = page["text"]
+            res.append({
+                "text": page_text
+            })
+    text = " ".join(res[i]["text"] for i in range(len(res)))
+    print(f"Combined text for document--> {text}")
+    return text
+
 # =================================================
 # PDF Parser
 # =================================================
