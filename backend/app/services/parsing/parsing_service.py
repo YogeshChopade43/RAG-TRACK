@@ -3,10 +3,11 @@ from app.services.generic.parsers.pdf_parser import parse_pdf
 from app.services.generic.parsers.txt_parser import parse_txt
 from app.core.paths import PARSED_DIR, RAW_DIR
 from app.services.generic.utils.parser_utils import normalize_pages
-
+from app.services.text_cleaning.text_cleaning_service import TextCleaningService
 
 PARSED_BASE = PARSED_DIR
 RAW_BASE = RAW_DIR
+cleaner = TextCleaningService()
 
 class ParsingService:
     def parse(self, document_id: str):
@@ -33,11 +34,11 @@ class ParsingService:
         else:
             raise ValueError(f"Unsupported source type: {ext}")
         
-#        pages = normalize_pages(pages)
-        print(pages)
-    #    text = " ".join([p["text"] for p in pages])
-
         print("Parsing completed.")
+
+        pages = cleaner.clean_pages(pages)
+        print(pages)
+        print("Cleaning completed.")
 
         os.makedirs(PARSED_BASE, exist_ok=True)
         out_path = os.path.join(PARSED_BASE, f"{document_id}.json")
