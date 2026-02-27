@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import ingest, parse
+from app.api import ingest, retrieve
 
 app = FastAPI()
 
@@ -22,4 +22,5 @@ app.include_router(ingest.router, prefix="/ingest")
 def health():
     return {"status": "ok"}
 
-# app.include_router(parse.router, prefix="/parse")
+
+app.include_router(retrieve.router, prefix="/query")
