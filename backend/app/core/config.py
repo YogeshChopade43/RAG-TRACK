@@ -3,8 +3,8 @@
 ALLOWED_EXTENSIONS = {"pdf", "txt"}
 MAX_FILE_SIZE_MB = 10
 
-CHUNK_SIZE = 1024
-CHUNK_OVERLAP = 500
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 125
 
 EMBEDDING_DIR = "data/embeddings"
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"

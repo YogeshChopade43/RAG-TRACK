@@ -1,14 +1,13 @@
 from app.services.parsing.parsing_service import ParsingService
 from app.services.chunking.chunking_service import ChunkingService
 from app.services.embedding.embedding_service import EmbeddingService
-# from app.services.storage.vector_store import VectorStore
 from app.services.generic.utils.parser_utils import get_page_text
 from app.services.generic.update_vector_store import save_document_vector_store
 import json
 parsing_service = ParsingService()
 chunking_service = ChunkingService()
 embedding_service = EmbeddingService()
-# vector_store = VectorStore()
+
 
 def ingest(document_id: str, filename: str):
     """
@@ -21,7 +20,7 @@ def ingest(document_id: str, filename: str):
     # 1. Parse raw file into text and clean extracted text
     parsed_load = parsing_service.parse(doc_id)
     print(f"🎀 Parsed text for document {doc_id}: {parsed_load}\n")                      
-#    get_page_text(parsed_load["pages"])
+    text = get_page_text(parsed_load["pages"])
                     
 
     # 2. Chunk parsed text
@@ -37,5 +36,5 @@ def ingest(document_id: str, filename: str):
     save_document_vector_store(doc_id, embedded_chunks)
     print(f"🎀 Updated vector store with embeddings for document {fname}")
         
-    return parsed_load
+    return text[:200]
 

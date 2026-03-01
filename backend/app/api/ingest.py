@@ -7,7 +7,7 @@ from app.services.ingestion.ingestion_service import ingest
 
 router = APIRouter()
 
-@router.post("/")
+@router.post("")
 async def ingest_document(file: UploadFile):
     if not file:
         raise HTTPException(status_code=400, detail="No file provided")

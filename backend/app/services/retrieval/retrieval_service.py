@@ -15,9 +15,7 @@ class RetrievalService:
         print("🔎 Initializing Retrieval Service...")
         self.model = SentenceTransformer(MODEL_NAME)
 
-    # -----------------------------
     # Load a single document store
-    # -----------------------------
     def _load_document_store(self, document_id: str):
         """
         Loads embeddings for a specific document.
@@ -40,21 +38,17 @@ class RetrievalService:
         print(f"📚 Loaded {len(data)} chunks for document {document_id}")
         return data
 
-    # -----------------------------
     # Cosine similarity
-    # -----------------------------
     def _cosine_similarity(self, a, b):
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-    # -----------------------------
     # Main search function
-    # -----------------------------
     def search(self, document_id: str, query: str, top_k: int = 3):
         """
         Performs semantic search inside ONE document.
         """
 
-        # 1️⃣ Load document embeddings
+        # Load document embeddings
         vector_store = self._load_document_store(document_id)
 
         if not vector_store:
@@ -63,21 +57,21 @@ class RetrievalService:
                 "message": "No embeddings found for this document. Upload and ingest first."
             }
 
-        # 2️⃣ Convert query → embedding
+        # Convert query → embedding
         print("🧠 Encoding query...")
         query_embedding = self.model.encode(query)
         query_embedding = np.array(query_embedding, dtype=np.float32)
 
-        # 3️⃣ Compare with all chunks
+        # Compare with all chunks
         scores = []
         for item in vector_store:
             similarity = self._cosine_similarity(query_embedding, item["embedding"])
             scores.append((similarity, item))
 
-        # 4️⃣ Sort by best semantic match
+        # Sort by best semantic match
         scores.sort(key=lambda x: x[0], reverse=True)
 
-        # 5️⃣ Prepare response
+        # Prepare response
         results = []
         for score, item in scores[:top_k]:
             results.append({
