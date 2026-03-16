@@ -1,16 +1,10 @@
-import os
-from openai import OpenAI
-
-from dotenv import load_dotenv
-load_dotenv()
-
-client = OpenAI(
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url="https://openrouter.ai/api/v1",
-)
+from app.services.llm.llm_service import LLMService
 
 
 class GenerationService:
+
+    def __init__(self):
+        self.llm = LLMService()
 
     def build_context(self, retrieved_chunks):
         # combine top-k chunks into readable context
@@ -39,13 +33,4 @@ class GenerationService:
                     {question}
                     """
 
-        response = client.chat.completions.create(
-            model="arcee-ai/trinity-large-preview:free",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0
-        )
-
-        return response.choices[0].message.content.strip()
+        return self.llm.chat(system_prompt, user_prompt)

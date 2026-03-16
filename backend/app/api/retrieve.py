@@ -4,11 +4,13 @@ from httpx import request
 from fastapi import APIRouter
 from app.services.retrieval.retrieval_service import RetrievalService
 from app.services.generation.generation_service import GenerationService
+from app.services.query_rewrite.query_rewrite_service import QueryRewriteService
 from pydantic import BaseModel
 
 router = APIRouter()
 
 retriever = RetrievalService()
+rewriter  = QueryRewriteService()
 generator = GenerationService()
 
 class QueryRequest(BaseModel):
@@ -18,8 +20,12 @@ class QueryRequest(BaseModel):
 @router.post("")
 def query_docs(request: QueryRequest):
 
+    # Rewrite the query
+    rewritten_query = rewriter.rewrite(request.question)
+    print("Rewritten Query:", rewritten_query)
+
     # Retrieve relevant chunks
-    retrieval_result = retriever.search(request.document_id, request.question)
+    retrieval_result = retriever.search(request.document_id, rewritten_query)
     retrieved_chunks = retrieval_result["matches"]
 
     # Safety: no context found
