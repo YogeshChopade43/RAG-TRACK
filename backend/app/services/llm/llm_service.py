@@ -10,9 +10,9 @@ class LLMService:
     def __init__(self):
         self.client = OpenAI(
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            base_url="https://openrouter.ai/api/v1",
+            base_url=os.getenv("OPENROUTER_BASE_URL"),
         )
-        self.model = "arcee-ai/trinity-large-preview:free"
+        self.model = "openrouter/hunter-alpha"
 
     def chat(self, system_prompt: str, user_prompt: str):
 

@@ -90,29 +90,18 @@ class QueryRewriteService:
             return question
 
         system_prompt = """
-You are a search query optimizer for a document retrieval system.
+            You are a search query optimizer for a document retrieval system.
 
-Convert the user's question into a concise keyword-style search query.
+            Convert the user's question into a concise keyword-style search query.
 
-Instructions:
-- Remove conversational phrasing like "what is", "tell me", etc.
-- Replace pronouns like "his", "her", "it" with a generic reference if needed
-- Expand important concepts with synonyms
-- Return only keywords separated by spaces
-- Do NOT answer the question
-- Do NOT return a sentence
-
-Examples:
-
-Question: What is his college name?
-Query: college university education institute
-
-Question: What is the CGPA?
-Query: CGPA GPA grade point average education score
-
-Question: What skills does the person have?
-Query: skills technologies programming languages expertise
-"""
+            Instructions:
+            - Remove conversational phrasing like "what is", "tell me", etc.
+            - Replace pronouns like "his", "her", "it" with a generic reference if needed
+            - Expand important concepts with synonyms
+            - Return only keywords separated by spaces
+            - Do NOT answer the question
+            - Do NOT return a sentence
+            """
         try:
 
             rewritten = self.llm.chat(system_prompt, question)
