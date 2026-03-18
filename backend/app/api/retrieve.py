@@ -26,22 +26,42 @@ def query_docs(request: QueryRequest):
 
     all_chunks = []
 
+    print("\n" + "="*70)
+    print("🧠 ORIGINAL QUESTION:", request.question)
+    print("🧩 SUB-QUERIES:", sub_queries)
+    print("="*70 + "\n")
+
     # Step 2: Process each sub-query
     for q in sub_queries:
 
+        print("\n➡️ Processing Sub-Query:", q)
+
         # Step 1: Rewrite
         rewritten_query = rewriter.rewrite(q)
+        print("\n➡️ Processing Sub-Query:", q)
 
         # Step 2: Multi-query expansion ← ADD HERE
         expanded_queries = multi_query.generate_queries(
             rewritten_query,
             total_sub_queries=len(sub_queries)
         )
+        print("🔀 Expanded Queries:", expanded_queries)
 
         # Step 3: Retrieval for each expanded query
         for eq in expanded_queries:
+
+            print("\n🔎 Running retrieval for:", eq)
             result = retriever.search(request.document_id, eq)
-            all_chunks.extend(result["matches"])
+
+            matches = result["matches"]
+            print(f"📊 Retrieved {len(matches)} chunks")
+
+            for i, chunk in enumerate(matches):
+                print(f"   Rank {i+1} | Score: {round(chunk['score'], 4)}")
+                print(f"   Text: {chunk['chunk_text'][:120]}")
+                print("-" * 40)
+
+            all_chunks.extend(matches)
 
     # Step 3: Deduplicate chunks
     unique_chunks = {c["chunk_id"]: c for c in all_chunks}.values()
@@ -51,6 +71,18 @@ def query_docs(request: QueryRequest):
 
     # Step 5: Take top-k
     retrieved_chunks = sorted_chunks[:5]
+    
+    print("\n" + "="*70)
+    print("🏁 FINAL MERGED TOP CHUNKS")
+
+    for i, chunk in enumerate(retrieved_chunks):
+        print(f"\nFinal Rank {i+1}")
+        print("Score:", round(chunk["score"], 4))
+        print("Chunk ID:", chunk["chunk_id"])
+        print("Page:", chunk["page_number"])
+        print("Text:", chunk["chunk_text"][:200])
+
+    print("="*70 + "\n")
 
     # Safety check
     if not retrieved_chunks:
