@@ -40,10 +40,14 @@ Thumbs.db
 # RAG Project Data (IMPORTANT)
 # =========================
 data/
+traces/
 
 # =========================
 # Logs
 # =========================
 *.log
 logs/
-
+.kilo/
+.kilocode/
+.github/
+test.py

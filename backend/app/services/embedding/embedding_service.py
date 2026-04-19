@@ -1,75 +1,121 @@
-import os
+"""
+Embedding service for RAG-TRACK.
+
+Generates embeddings for text chunks using sentence transformers.
+"""
+
 import json
-from typing import List, Dict
-from sentence_transformers import SentenceTransformer
+import logging
+from functools import lru_cache
+from typing import Any, Dict, List
+
+import faiss
 import numpy as np
-from app.core.config import EMBEDDING_DIR, MODEL_NAME
+from sentence_transformers import SentenceTransformer
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def get_embedding_model() -> SentenceTransformer:
+    """
+    Get cached embedding model.
+
+    Uses lru_cache to ensure model is loaded only once.
+    """
+    logger.info(f"Loading embedding model: {settings.embedding_model}")
+    model = SentenceTransformer(settings.embedding_model)
+    logger.info("Embedding model loaded successfully")
+    return model
 
 
 class EmbeddingService:
     """
-    Converts chunks -> embeddings (vectors)
+    Converts chunks -> embeddings (vectors).
 
-    Output:
-        Each chunk gets a vector representation.
-        We store vector + metadata for retrieval.
+    Creates FAISS index for fast similarity search.
     """
 
     def __init__(self):
-        print("Loading embedding model...")
-        self.model = SentenceTransformer(MODEL_NAME)
-        os.makedirs(EMBEDDING_DIR, exist_ok=True)
-        print("Embedding model loaded")
+        """Initialize embedding service with lazy model loading."""
+        logger.debug("Initializing EmbeddingService")
+        self.model = get_embedding_model()
+        settings.vector_store_dir.mkdir(parents=True, exist_ok=True)
 
-    def embed(self, chunks: List[Dict]) -> Dict:
+    def embed(self, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Input:
-            List of chunk dictionaries
+        Generate embeddings for chunks and build FAISS index.
 
-        Output:
-            embedding file saved + metadata
+        Args:
+            chunks: List of chunk dictionaries
+
+        Returns:
+            Dict with index path, metadata path, and chunk count
+
+        Raises:
+            ValueError: If no chunks provided
         """
-
         if not chunks:
             raise ValueError("No chunks provided for embedding")
 
         document_id = chunks[0]["document_id"]
 
-        print(f"Generating embeddings for document {document_id}")
+        logger.info(
+            f"Generating embeddings for document {document_id}, chunks: {len(chunks)}"
+        )
 
-        # -------- Extract text --------
+        # Extract texts
         texts = [chunk["chunk_text"] for chunk in chunks]
 
-        # -------- Generate vectors --------
+        # Generate embeddings
         vectors = self.model.encode(
             texts,
             convert_to_numpy=True,
-            show_progress_bar=True
+            show_progress_bar=True,
         )
 
-        # -------- Build storage payload --------
-        records = []
+        # Convert to float32 for FAISS
+        vectors = vectors.astype("float32")
 
-        for chunk, vector in zip(chunks, vectors):
-            record = {
-                "chunk_id": chunk["chunk_id"],
-                "document_id": chunk["document_id"],
-                "file_name": chunk["file_name"],
-                "page_number": chunk["page_number"],
-                "char_start": chunk["char_start"],
-                "char_end": chunk["char_end"],
-                "chunk_text": chunk["chunk_text"],
-                "embedding": vector.tolist()  # numpy -> json
-            }
+        # Create FAISS index
+        dim = vectors.shape[1]
+        index = faiss.IndexFlatL2(dim)
+        index.add(vectors)
 
-            records.append(record)
+        # Save index
+        index_path = settings.vector_store_dir / f"{document_id}.index"
+        faiss.write_index(index, str(index_path))
 
-        # -------- Save to disk --------
-        out_path = os.path.join(EMBEDDING_DIR, f"{document_id}.json")
+        # Prepare metadata
+        metadata = []
+        for chunk in chunks:
+            metadata.append(
+                {
+                    "chunk_id": chunk["chunk_id"],
+                    "document_id": chunk["document_id"],
+                    "file_name": chunk["file_name"],
+                    "page_number": chunk["page_number"],
+                    "char_start": chunk["char_start"],
+                    "char_end": chunk["char_end"],
+                    "chunk_text": chunk["chunk_text"],
+                }
+            )
 
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(records, f)
+        # Save metadata
+        metadata_path = settings.vector_store_dir / f"{document_id}_metadata.json"
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
 
-        print(f"Embeddings stored at {out_path}")
+        logger.info(f"Embeddings generated and saved for document {document_id}")
 
-        return records
+        return {
+            "index_path": str(index_path),
+            "metadata_path": str(metadata_path),
+            "chunks": len(metadata),
+        }
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return f"EmbeddingService(model={settings.embedding_model})"

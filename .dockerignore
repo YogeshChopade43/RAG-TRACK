@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.Python/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Logs
+*.log
+logs/
+
+# Data (keep directory but ignore contents)
+data/
+# Exception: don't ignore subdirectories
+!data/.gitkeep
+
+# CI/CD
+.github/
+
+# Documentation
+*.md
+LICENSE
+
+# Environment
+.env
+.env.local
