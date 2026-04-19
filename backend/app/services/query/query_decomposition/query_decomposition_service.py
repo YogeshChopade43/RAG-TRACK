@@ -1,4 +1,4 @@
-from app.services.llm.llm_service import LLMService
+from app.services.llm.llm_service_local import LLMServiceLocal
 import re
 
 
@@ -8,7 +8,7 @@ class QueryDecompositionService:
     """
 
     def __init__(self):
-        self.llm = LLMService()
+        self.llm = LLMServiceLocal()
 
     # Detect if decomposition is needed
     def should_decompose(self, query: str) -> bool:
@@ -48,11 +48,7 @@ class QueryDecompositionService:
 
         questions = response.split("\n")
 
-        cleaned = [
-            q.strip("- ").strip()
-            for q in questions
-            if q.strip()
-        ]
+        cleaned = [q.strip("- ").strip() for q in questions if q.strip()]
 
         return cleaned
 
@@ -68,11 +64,10 @@ class QueryDecompositionService:
             if not sub_queries:
                 print("QueryDecomposition: fallback to rule-based")
                 return self._rule_based_split(query)
-            
+
             if len(sub_queries) < 2:
                 print("QueryDecomposition: fallback to rule-based")
                 return self._rule_based_split(query)
-
 
             print("\nQueryDecomposition")
             print("Original:", query)

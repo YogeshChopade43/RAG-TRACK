@@ -1,10 +1,9 @@
-from app.services.llm.llm_service import LLMService
+from app.services.llm.llm_service_local import LLMServiceLocal
 
 
 class GenerationService:
-
     def __init__(self):
-        self.llm = LLMService()
+        self.llm = LLMServiceLocal()
 
     def build_context(self, retrieved_chunks):
         # combine top-k chunks into readable context

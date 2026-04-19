@@ -1,4 +1,4 @@
-from app.services.llm.llm_service import LLMService
+from app.services.llm.llm_service_local import LLMServiceLocal
 import re
 
 
@@ -14,20 +14,31 @@ class QueryRewriteService:
     """
 
     def __init__(self):
-        self.llm = LLMService()
+        self.llm = LLMServiceLocal()
 
         # words that signal ambiguous queries
         self.pronouns = [
-            "it", "this", "that",
-            "he", "she", "they",
-            "his", "her", "their"
+            "it",
+            "this",
+            "that",
+            "he",
+            "she",
+            "they",
+            "his",
+            "her",
+            "their",
         ]
 
         # question prefixes that usually add noise for retrieval
         self.conversational_prefix = [
-            "what is", "tell me", "can you",
-            "could you", "please", "explain",
-            "describe", "give me"
+            "what is",
+            "tell me",
+            "can you",
+            "could you",
+            "please",
+            "explain",
+            "describe",
+            "give me",
         ]
 
     # ---------------------------------------------------------
@@ -103,7 +114,6 @@ class QueryRewriteService:
             - Do NOT return a sentence
             """
         try:
-
             rewritten = self.llm.chat(system_prompt, question)
 
             cleaned = self._clean_output(rewritten)
@@ -120,7 +130,6 @@ class QueryRewriteService:
             return cleaned
 
         except Exception as e:
-
             print("QueryRewrite failed:", e)
 
             # fallback safely

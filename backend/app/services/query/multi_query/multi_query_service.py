@@ -1,9 +1,9 @@
-from app.services.llm.llm_service import LLMService
+from app.services.llm.llm_service_local import LLMServiceLocal
+
 
 class MultiQueryService:
-
     def __init__(self):
-        self.llm = LLMService()
+        self.llm = LLMServiceLocal()
 
     def _decide_expansion_count(self, total_sub_queries: int) -> int:
         """
@@ -11,13 +11,13 @@ class MultiQueryService:
         """
 
         if total_sub_queries <= 1:
-            return 3   # simple query → more expansion
+            return 3  # simple query → more expansion
 
         elif total_sub_queries <= 3:
-            return 2   # medium → moderate expansion
+            return 2  # medium → moderate expansion
 
         else:
-            return 1   # complex → minimal expansion
+            return 1  # complex → minimal expansion
 
     def generate_queries(self, query: str, total_sub_queries: int):
         """
@@ -47,18 +47,14 @@ class MultiQueryService:
 
             queries = response.split("\n")
 
-            cleaned = [
-                q.strip("- ").strip()
-                for q in queries
-                if q.strip()
-            ]
+            cleaned = [q.strip("- ").strip() for q in queries if q.strip()]
 
             # 🔥 FILTER BAD OUTPUTS
             filtered = []
             for q in cleaned:
                 if "empty response" in q.lower():
                     continue
-                if len(q.split()) <= 1:   # too short/noisy
+                if len(q.split()) <= 1:  # too short/noisy
                     continue
                 filtered.append(q)
 
