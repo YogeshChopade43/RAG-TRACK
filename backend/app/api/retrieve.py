@@ -3,6 +3,7 @@ Query API endpoints for RAG-TRACK.
 
 Provides semantic search and question answering over uploaded documents.
 """
+
 import logging
 import re
 from functools import lru_cache
@@ -15,6 +16,7 @@ from slowapi.util import get_remote_address
 
 from app.core.config import settings
 from app.core.ratelimit import default_limit
+from app.core.auth import get_api_key
 from app.services.retrieval.retrieval_service import RetrievalService
 from app.services.generation.generation_service import GenerationService
 from app.services.query.query_rewrite.query_rewrite_service import QueryRewriteService
@@ -29,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
+
+
+def require_auth(api_key: str = Depends(get_api_key)) -> str:
+    """Dependency to require API authentication."""
+    return api_key
 
 
 # =============================================================================
@@ -201,16 +208,13 @@ async def query_documents(
 
             # Step 2b: Multi-query expansion
             expanded_queries = multi_query.generate_queries(
-                rewritten_query,
-                total_sub_queries=len(sub_queries)
+                rewritten_query, total_sub_queries=len(sub_queries)
             )
 
             # Step 2c: Retrieval for each expanded query
             for eq in expanded_queries:
                 trace_service.start_timer("retrieval")
-                result = retriever.search(
-                    query_request.document_id, eq, top_k=top_k
-                )
+                result = retriever.search(query_request.document_id, eq, top_k=top_k)
                 matches = result.get("matches", [])
                 trace_service.end_timer("retrieval")
 
@@ -263,7 +267,9 @@ async def query_documents(
             trace_service.set_response(answer)
         except Exception as e:
             logger.error(f"Generation failed: {str(e)}")
-            answer = "I encountered an error while generating the answer. Please try again."
+            answer = (
+                "I encountered an error while generating the answer. Please try again."
+            )
             trace_service.set_error(str(e))
 
         trace_service.end_timer("generation")

@@ -90,6 +90,9 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 2000
     llm_timeout_seconds: int = 60
 
+    # Authentication
+    api_key: Optional[str] = Field(default=None, validation_alias="API_KEY")
+
     # Retrieval
     top_k_retrieval: int = 5
     retrieval_score_threshold: float = 0.0

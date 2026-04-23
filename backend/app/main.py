@@ -3,6 +3,7 @@ RAG-TRACK FastAPI Application.
 
 Main application entry point with middleware, routing, and observability.
 """
+
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -14,6 +15,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.ratelimit import limiter, rate_limit_exceeded_handler
+from app.core.auth import get_api_key
 from slowapi.errors import RateLimitExceeded
 from app.api import ingest, retrieve
 
@@ -27,7 +29,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup/shutdown events."""
     logger.info(f"Starting {settings.app_name} in {settings.environment} mode")
     logger.info(f"Data directory: {settings.data_dir}")
-    logger.info(f"Rate limiting: {'enabled' if settings.rate_limit_enabled else 'disabled'}")
+    logger.info(
+        f"Rate limiting: {'enabled' if settings.rate_limit_enabled else 'disabled'}"
+    )
+    logger.info(
+        f"API Authentication: {'enabled' if settings.api_key else 'disabled (dev mode)'}"
+    )
 
     # Ensure data directories exist
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -68,9 +75,7 @@ async def log_requests(request: Request, call_next):
     """Log all incoming requests."""
     logger.debug(f"{request.method} {request.url.path}")
     response = await call_next(request)
-    logger.debug(
-        f"{request.method} {request.url.path} - {response.status_code}"
-    )
+    logger.debug(f"{request.method} {request.url.path} - {response.status_code}")
     return response
 
 
@@ -104,6 +109,7 @@ def readiness_check(request: Request):
     """Readiness check with dependency validation."""
     checks = {
         "api": "ready",
+        "auth": "enabled" if settings.api_key else "disabled",
     }
 
     # Check if required directories are writable

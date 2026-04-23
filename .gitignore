@@ -51,3 +51,4 @@ logs/
 .kilocode/
 .github/
 test.py
+INFO.md

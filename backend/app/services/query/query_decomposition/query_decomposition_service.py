@@ -1,5 +1,9 @@
-from app.services.llm.llm_service_local import LLMServiceLocal
+import logging
 import re
+
+from app.services.llm.llm_service_local import LLMServiceLocal
+
+logger = logging.getLogger(__name__)
 
 
 class QueryDecompositionService:
@@ -55,26 +59,26 @@ class QueryDecompositionService:
     def decompose(self, query: str):
 
         if not self.should_decompose(query):
-            print("QueryDecomposition: skipped")
+            logger.debug("QueryDecomposition: skipped")
             return [query]
 
         try:
             sub_queries = self._llm_decompose(query)
 
             if not sub_queries:
-                print("QueryDecomposition: fallback to rule-based")
+                logger.debug("QueryDecomposition: fallback to rule-based")
                 return self._rule_based_split(query)
 
             if len(sub_queries) < 2:
-                print("QueryDecomposition: fallback to rule-based")
+                logger.debug("QueryDecomposition: fallback to rule-based")
                 return self._rule_based_split(query)
 
-            print("\nQueryDecomposition")
-            print("Original:", query)
-            print("Sub-queries:", sub_queries, "\n")
+            logger.info(
+                f"QueryDecomposition: original='{query}', sub_queries={sub_queries}"
+            )
 
             return sub_queries
 
         except Exception as e:
-            print("QueryDecomposition failed:", e)
+            logger.error(f"QueryDecomposition failed: {e}", exc_info=True)
             return self._rule_based_split(query)

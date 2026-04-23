@@ -1,4 +1,8 @@
+import logging
+
 from app.services.llm.llm_service_local import LLMServiceLocal
+
+logger = logging.getLogger(__name__)
 
 
 class MultiQueryService:
@@ -63,12 +67,12 @@ class MultiQueryService:
             # deduplicate
             final_queries = list(dict.fromkeys(final_queries))
 
-            print("\nMultiQuery Expansion")
-            print("Base Query:", query)
-            print("Expanded:", final_queries)
+            logger.info(
+                f"MultiQuery expansion: base='{query}', expanded={final_queries}"
+            )
 
             return final_queries[:num_queries]
 
         except Exception as e:
-            print("MultiQuery failed:", e)
+            logger.error(f"MultiQuery failed: {e}", exc_info=True)
             return [query]

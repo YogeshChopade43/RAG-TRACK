@@ -1,6 +1,10 @@
 import json
+import logging
 import os
+
 from app.core.config import VECTOR_STORE_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def save_document_vector_store(document_id: str, embedded_chunks: list):
@@ -15,4 +19,4 @@ def save_document_vector_store(document_id: str, embedded_chunks: list):
     with open(doc_store_path, "w", encoding="utf-8") as f:
         json.dump(embedded_chunks, f, indent=2)
 
-    print(f"🧠 Stored {len(embedded_chunks)} chunks for document {document_id}")
+    logger.info(f"🧠 Stored {len(embedded_chunks)} chunks for document {document_id}")
