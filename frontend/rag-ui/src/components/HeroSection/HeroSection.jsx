@@ -73,7 +73,6 @@ const HeroSection = ({ onUploadClick }) => {
           initial="hidden"
           animate="visible"
         >
-          <span className="title-line">Unlock Insights</span>
           <span className="title-line">
             <Motion.span
               className="text-gradient-gold"
@@ -81,10 +80,11 @@ const HeroSection = ({ onUploadClick }) => {
               initial="hidden"
               animate="visible"
             >
-              Deep Within
+              RAG-TRACK
             </Motion.span>
-            <br />
-            <span className="text-gradient-cyan">Your Documents</span>
+          </span>
+          <span className="title-line" style={{ fontFamily: "var(--font-body)", fontWeight: "300", fontSize: "clamp(1.2rem, 3vw, 1.8rem)", letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "var(--space-sm)" }}>
+            Document Intelligence Platform
           </span>
         </Motion.h1>
 
