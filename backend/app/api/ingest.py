@@ -3,6 +3,7 @@ Ingestion API endpoints for RAG-TRACK.
 
 Provides document upload and processing endpoints.
 """
+
 import logging
 import os
 import re
@@ -16,6 +17,7 @@ from slowapi.util import get_remote_address
 
 from app.core.config import settings
 from app.core.ratelimit import default_limit
+from app.core.auth import get_api_key
 from app.services.generic.file_storage import save_raw_file
 from app.services.ingestion.ingestion_service import ingest
 
@@ -23,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
+
+
+def require_auth(api_key: str = Depends(get_api_key)) -> str:
+    """Dependency to require API authentication."""
+    return api_key
 
 
 # =============================================================================
@@ -71,17 +78,14 @@ def secure_filename(filename: str) -> str:
 def validate_file_extension(filename: str) -> str:
     """Validate file extension against allowed list."""
     if "." not in filename:
-        raise HTTPException(
-            status_code=400,
-            detail="File must have an extension"
-        )
+        raise HTTPException(status_code=400, detail="File must have an extension")
 
     ext = filename.rsplit(".", 1)[-1].lower()
 
     if ext not in settings.allowed_extensions:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type. Allowed: {', '.join(settings.allowed_extensions)}"
+            detail=f"Unsupported file type. Allowed: {', '.join(settings.allowed_extensions)}",
         )
 
     return ext
@@ -142,7 +146,7 @@ async def ingest_document(
     if size_bytes > settings.max_file_size_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size: {settings.max_file_size_mb}MB"
+            detail=f"File too large. Maximum size: {settings.max_file_size_mb}MB",
         )
 
     # Generate document ID
@@ -162,9 +166,7 @@ async def ingest_document(
         # Note: For large files, this should be async with task queue
         result = ingest(document_id, filename=safe_filename)
 
-        logger.info(
-            f"Document ingested successfully: {document_id}"
-        )
+        logger.info(f"Document ingested successfully: {document_id}")
 
         return IngestResponse(
             filename=safe_filename,
@@ -178,10 +180,7 @@ async def ingest_document(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"Ingestion failed for {document_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to process document"
-        )
+        raise HTTPException(status_code=500, detail="Failed to process document")
 
 
 @router.get("/{document_id}")

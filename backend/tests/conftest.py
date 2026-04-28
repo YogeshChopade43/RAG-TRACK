@@ -1,6 +1,7 @@
 """
 Pytest configuration and test fixtures.
 """
+
 import os
 import sys
 from pathlib import Path
@@ -102,7 +103,7 @@ def mock_client():
 
     from app.main import app
 
-    with patch("app.services.llm.llm_service.LLMService") as mock_llm:
+    with patch("app.services.llm.llm_service_local.LLMServiceLocal") as mock_llm:
         mock_instance = MagicMock()
         mock_instance.chat.return_value = "Test response"
         mock_llm.return_value = mock_instance

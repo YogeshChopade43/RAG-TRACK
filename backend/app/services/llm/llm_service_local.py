@@ -6,6 +6,8 @@ Provides LLM integration with Ollama's local API.
 
 import logging
 import os
+import json
+import re
 from typing import Optional
 
 import requests
@@ -101,9 +103,11 @@ class LLMServiceLocal:
                 "model": self.model,
                 "prompt": user_prompt,
                 "system": system_prompt,
-                "temperature": self.temperature,
-                "max_tokens": self.max_tokens,
                 "stream": False,
+                "options": {
+                    "temperature": self.temperature,
+                    "num_predict": self.max_tokens,
+                },
             }
 
             response = requests.post(
@@ -126,6 +130,11 @@ class LLMServiceLocal:
                 logger.warning(f"Ollama raw response: {data}")
                 return "The model returned an empty response."
 
+            # Filter out DeepSeek R1 thinking tags and content
+            text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+            text = re.sub(r'^(?i)answer\s*:\s*', '', text).strip()
+            text = self._collapse_repeated_text(text)
+
             return text
 
         except requests.exceptions.Timeout:
@@ -137,6 +146,26 @@ class LLMServiceLocal:
         except Exception as e:
             logger.error(f"LLM request failed: {str(e)}")
             raise
+
+    def _collapse_repeated_text(self, text: str) -> str:
+        if not text:
+            return text
+
+        normalized = text.strip()
+        for repeat in range(5, 1, -1):
+            if len(normalized) % repeat == 0:
+                chunk = normalized[: len(normalized) // repeat]
+                if chunk * repeat == normalized:
+                    normalized = chunk.strip()
+                    break
+
+        paragraphs = [p.strip() for p in re.split(r'(?:\r?\n){2,}', normalized) if p.strip()]
+        collapsed = []
+        for paragraph in paragraphs:
+            if not collapsed or paragraph != collapsed[-1]:
+                collapsed.append(paragraph)
+
+        return "\n\n".join(collapsed)
 
     def __repr__(self) -> str:
         """String representation."""

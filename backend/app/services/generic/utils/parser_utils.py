@@ -1,11 +1,16 @@
 from pypdf import PdfReader
+import logging
+
+logger = logging.getLogger(__name__)
 
 # =================================================
 # Utility Functions
 # =================================================
 
+
 def normalize_text(text: str) -> str:
     return " ".join(text.split())
+
 
 def normalize_pages(pages):
     normalized = []
@@ -16,17 +21,17 @@ def normalize_pages(pages):
             normalized.append(str(p))
     return normalized
 
+
 def get_page_text(pages):
     res = []
-  
+
     for page in pages:
-            page_text = page["text"]
-            res.append({
-                "text": page_text
-            })
+        page_text = page["text"]
+        res.append({"text": page_text})
     text = " ".join(res[i]["text"] for i in range(len(res)))
-    print(f"Combined text for document--> {text}")
+    logger.debug(f"Combined text for document: {text[:100]}...")
     return text
+
 
 # =================================================
 # PDF Parser
@@ -50,4 +55,3 @@ def get_page_text(pages):
 #     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
 #         text = normalize_text(f.read())
 #     return [{"page_number": None, "text": text}]
-

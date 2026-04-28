@@ -1,0 +1,208 @@
+﻿.upload-wrapper {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.upload-dropzone {
+  position: relative;
+  padding: var(--space-2xl) var(--space-xl);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px dashed var(--color-border);
+  border-radius: 20px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--motion-normal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.upload-dropzone:hover {
+  border-color: var(--color-gold-primary);
+  background: rgba(212, 165, 116, 0.04);
+  box-shadow: 0 0 40px rgba(212, 165, 116, 0.1);
+}
+
+.upload-dropzone.drag-active {
+  border-color: var(--color-gold-primary);
+  border-style: solid;
+  background: rgba(212, 165, 116, 0.08);
+  box-shadow: 
+    0 0 0 4px var(--color-amber-glow),
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    inset 0 0 60px rgba(212, 165, 116, 0.05);
+  transform: scale(1.01);
+}
+
+.upload-dropzone.has-error {
+  border-color: #ff4444;
+}
+
+.upload-dropzone.has-error:hover {
+  box-shadow: 0 0 40px rgba(255, 68, 68, 0.15);
+}
+
+/* Icon Styles */
+.upload-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(212, 165, 116, 0.15), rgba(166, 124, 82, 0.1));
+  border-radius: 20px;
+  margin-bottom: var(--space-md);
+}
+
+.upload-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--color-gold-primary);
+}
+
+.upload-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Content States */
+.upload-content {
+  text-align: center;
+}
+
+.upload-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.upload-message {
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.upload-message.highlight {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-gold-primary);
+}
+
+.upload-or {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.upload-browse {
+  color: var(--color-gold-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.upload-subtext {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* Uploading State */
+.upload-spinner {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  margin: var(--space-md) 0;
+}
+
+.spinner-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid transparent;
+  border-top-color: var(--color-gold-primary);
+  border-radius: 50%;
+  animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.spinner-ring:nth-child(2) {
+  width: 70%;
+  height: 70%;
+  top: 15%;
+  left: 15%;
+  border-top-color: var(--color-cyan-accent);
+  animation-duration: 0.8s;
+  animation-direction: reverse;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Glow Effect */
+.upload-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle,
+    rgba(212, 165, 116, 0.08) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity var(--motion-normal);
+  pointer-events: none;
+}
+
+.upload-dropzone:hover .upload-glow,
+.upload-dropzone.drag-active .upload-glow {
+  opacity: 1;
+}
+
+/* Error State */
+.upload-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: 10px;
+  color: #ff6b6b;
+  font-size: 0.9rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .upload-dropzone {
+    padding: var(--space-xl) var(--space-lg);
+  }
+
+  .upload-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+
+  .upload-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .upload-message {
+    font-size: 1rem;
+  }
+}

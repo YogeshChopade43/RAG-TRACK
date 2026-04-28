@@ -1,40 +1,151 @@
-from app.services.parsing.parsing_service import ParsingService
+"""
+Ingestion service for RAG-TRACK.
+
+Orchestrates the document ingestion pipeline: parse → chunk → embed → store.
+Includes comprehensive error handling and cleanup for partial files.
+"""
+
+import logging
+import os
+from pathlib import Path
+
+from app.core.config import settings
+from app.core.exceptions import (
+    ChunkingError,
+    EmbeddingError,
+    IngestionError,
+    ParsingError,
+)
 from app.services.chunking.chunking_service import ChunkingService
 from app.services.embedding.embedding_service import EmbeddingService
-from app.services.generic.utils.parser_utils import get_page_text
 from app.services.generic.update_vector_store import save_document_vector_store
-import json
+from app.services.generic.utils.parser_utils import get_page_text
+from app.services.parsing.parsing_service import ParsingService
+
+logger = logging.getLogger(__name__)
+
+# Service instances
 parsing_service = ParsingService()
 chunking_service = ChunkingService()
 embedding_service = EmbeddingService()
 
 
-def ingest(document_id: str, filename: str):
+def _cleanup_partial_files(document_id: str) -> None:
+    """Remove partial files created during failed ingestion."""
+    paths_to_remove = [
+        settings.parsed_dir / f"{document_id}.json",
+        settings.vector_store_dir / f"{document_id}.index",
+        settings.vector_store_dir / f"{document_id}_metadata.json",
+        settings.vector_store_dir / f"{document_id}.json",
+    ]
+
+    for path in paths_to_remove:
+        try:
+            if path.exists():
+                path.unlink()
+                logger.debug(f"Cleaned up partial file: {path}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup {path}: {e}")
+
+
+def ingest(document_id: str, filename: str) -> dict:
     """
-    Orchestrates the ingestion pipeline for a document.
-    Input: document_id (already uploaded & stored)
+    Orchestrate the ingestion pipeline for a document.
+
+    Steps:
+    1. Parse raw file into structured text
+    2. Chunk parsed text into manageable segments
+    3. Generate embeddings for chunks
+    4. Save embeddings to vector store
+
+    Args:
+        document_id: Unique identifier for the document
+        filename: Original filename
+
+    Returns:
+        dict: Ingestion result with extracted text preview
+
+    Raises:
+        IngestionError: If any stage of the pipeline fails
     """
-    doc_id = document_id
-    fname = filename
+    logger.info(f"Starting ingestion for document {document_id} ({filename})")
 
-    # 1. Parse raw file into text and clean extracted text
-    parsed_load = parsing_service.parse(doc_id)
-    print(f"🎀 Parsed text for document {doc_id}: {parsed_load}\n")                      
-    text = get_page_text(parsed_load["pages"])
-                    
+    try:
+        # Stage 1: Parse raw file
+        logger.debug(f"[{document_id}] Parsing stage starting")
+        try:
+            parsed_load = parsing_service.parse(document_id)
+        except Exception as e:
+            logger.error(f"[{document_id}] Parsing failed: {e}")
+            raise IngestionError(
+                message=f"Failed to parse document: {str(e)}",
+                stage="parsing",
+                document_id=document_id,
+            ) from e
 
-    # 2. Chunk parsed text
-    chunks = chunking_service.chunk(parsed_load)
-    print(f"🎀 Length of chunks for document : {len(chunks)}\n")
-    print(f"🎀 Chunks for document {doc_id}: {chunks}\n")
-    
-    # 3. Generate embeddings
-    embedded_chunks = embedding_service.embed(chunks)
-    print(f"🎀 Embeddings for document {fname}: {len(embedded_chunks)} chunks\n")
+        text = get_page_text(parsed_load["pages"])
+        logger.info(
+            f"[{document_id}] Parsed {len(parsed_load['pages'])} pages, "
+            f"total {len(text)} characters"
+        )
 
-    # 4. Save into retriever vector store
-    save_document_vector_store(doc_id, embedded_chunks)
-    print(f"🎀 Updated vector store with embeddings for document {fname}")
-        
-    return text[:200]
+        # Stage 2: Chunk text
+        logger.debug(f"[{document_id}] Chunking stage starting")
+        try:
+            chunks = chunking_service.chunk(parsed_load)
+        except Exception as e:
+            logger.error(f"[{document_id}] Chunking failed: {e}")
+            raise IngestionError(
+                message=f"Failed to chunk document: {str(e)}",
+                stage="chunking",
+                document_id=document_id,
+            ) from e
 
+        logger.info(f"[{document_id}] Created {len(chunks)} chunks")
+
+        # Stage 3: Generate embeddings
+        logger.debug(f"[{document_id}] Embedding stage starting")
+        try:
+            embedded_chunks = embedding_service.embed(chunks)
+        except Exception as e:
+            logger.error(f"[{document_id}] Embedding failed: {e}")
+            raise IngestionError(
+                message=f"Failed to generate embeddings: {str(e)}",
+                stage="embedding",
+                document_id=document_id,
+            ) from e
+
+        logger.info(
+            f"[{document_id}] Generated embeddings for {embedded_chunks['chunks']} chunks"
+        )
+
+        # Stage 4: Save to vector store
+        logger.debug(f"[{document_id}] Vector store save starting")
+        try:
+            save_document_vector_store(document_id, embedded_chunks)
+        except Exception as e:
+            logger.error(f"[{document_id}] Vector store save failed: {e}")
+            raise IngestionError(
+                message=f"Failed to save to vector store: {str(e)}",
+                stage="vector_store",
+                document_id=document_id,
+            ) from e
+
+        logger.info(f"[{document_id}] Ingestion completed successfully")
+
+        # Return text preview (first 200 chars)
+        return {"text_preview": text[:200], "chunks_count": len(chunks)}
+
+    except IngestionError:
+        # Already logged with context, cleanup and re-raise
+        _cleanup_partial_files(document_id)
+        raise
+
+    except Exception as e:
+        # Catch-all for unexpected errors
+        logger.exception(f"[{document_id}] Unexpected error during ingestion: {e}")
+        _cleanup_partial_files(document_id)
+        raise IngestionError(
+            message=f"Unexpected ingestion error: {str(e)}",
+            document_id=document_id,
+        ) from e

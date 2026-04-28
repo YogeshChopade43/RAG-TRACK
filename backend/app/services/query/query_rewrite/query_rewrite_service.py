@@ -1,5 +1,8 @@
 from app.services.llm.llm_service_local import LLMServiceLocal
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 
 class QueryRewriteService:
@@ -97,7 +100,7 @@ class QueryRewriteService:
         """
 
         if not self.should_rewrite(question):
-            print("QueryRewrite: skipped")
+            logger.debug("QueryRewrite: skipped")
             return question
 
         system_prompt = """
@@ -120,17 +123,15 @@ class QueryRewriteService:
 
             # fallback if rewrite failed
             if not cleaned or cleaned.lower() == question.lower():
-                print("QueryRewrite: fallback to original")
+                logger.debug("QueryRewrite: fallback to original")
                 return question
 
-            print(f"\nQueryRewrite")
-            print(f"Original : {question}")
-            print(f"Rewritten: {cleaned}\n")
+            logger.info(f"QueryRewrite: '{question}' -> '{cleaned}'")
 
             return cleaned
 
         except Exception as e:
-            print("QueryRewrite failed:", e)
+            logger.error(f"QueryRewrite failed: {e}", exc_info=True)
 
             # fallback safely
             return question

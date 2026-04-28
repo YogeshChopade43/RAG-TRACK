@@ -1,6 +1,7 @@
 """
 Unit tests for QueryRewriteService.
 """
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -13,7 +14,9 @@ class TestQueryRewriteService:
     @pytest.fixture
     def service(self):
         """Create service with mocked LLM."""
-        with patch("app.services.query.query_rewrite.query_rewrite_service.LLMService") as mock_cls:
+        with patch(
+            "app.services.query.query_rewrite.query_rewrite_service.LLMServiceLocal"
+        ) as mock_cls:
             mock_instance = MagicMock()
             mock_instance.chat.return_value = "transformed query"
             mock_cls.return_value = mock_instance
