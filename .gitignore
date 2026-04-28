@@ -52,3 +52,4 @@ logs/
 .github/
 test.py
 INFO.md
+.ruff_cache/
