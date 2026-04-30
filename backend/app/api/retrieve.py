@@ -211,12 +211,31 @@ async def query_documents(
                 rewritten_query, total_sub_queries=len(sub_queries)
             )
 
-            # Step 2c: Retrieval for each expanded query
+        # Step 2c: Retrieval for each expanded query
             for eq in expanded_queries:
                 trace_service.start_timer("retrieval")
-                result = retriever.search(query_request.document_id, eq, top_k=top_k)
+                result = retriever.search(
+                    query_request.document_id,
+                    eq,
+                    top_k=top_k,
+                    use_reranking=True,
+                )
                 matches = result.get("matches", [])
                 trace_service.end_timer("retrieval")
+
+                # Track reranking in trace if applied
+                if result.get("reranking_applied"):
+                    trace_service.set_reranked_chunks(
+                        result.get("top_k_items", matches)
+                    )
+                    ranking_summary = result.get("ranking_summary", {})
+                    trace_service.set_ranking_summary(ranking_summary)
+                    trace_service.set_signal_scores(
+                        result.get("signal_scores", {})
+                    )
+                    trace_service.set_ranking_weights(
+                        result.get("weights_used", {})
+                    )
 
                 # Convert to trace format
                 formatted_chunks = [
@@ -231,7 +250,6 @@ async def query_documents(
                     }
                     for chunk in matches
                 ]
-
                 trace_service.append_retrieved_chunks(formatted_chunks)
                 all_chunks.extend(matches)
 

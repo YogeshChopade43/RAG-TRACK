@@ -15,17 +15,8 @@ class TestHealthEndpoints:
     @pytest.fixture
     def client(self):
         """Create test client."""
-        # Mock settings for testing
-        with patch("app.core.config.settings") as mock_settings:
-            mock_settings.app_name = "RAG-TRACK"
-            mock_settings.environment = "test"
-            mock_settings.allowed_origins = ["*"]
-            mock_settings.rate_limit_enabled = False
-            mock_settings.vector_store_dir = None
-
-            from app.main import app
-
-            yield TestClient(app)
+        from app.main import app
+        return TestClient(app)
 
     def test_root_endpoint(self, client):
         """Test root endpoint."""

@@ -80,7 +80,7 @@ class EmbeddingService:
         vectors = vectors.astype("float32")
 
         # Create FAISS index
-        dim = vectors.shape[1]
+        dim = int(vectors.shape[1])
         index = faiss.IndexFlatL2(dim)
         index.add(vectors)
 

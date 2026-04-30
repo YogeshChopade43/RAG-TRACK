@@ -6,30 +6,86 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
 # Add backend to path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir.parent))
 
+# ============================================================
+# Early mocking of heavy ML dependencies to avoid import errors
+# ============================================================
 
-@pytest.fixture
-def mock_settings(monkeypatch):
-    """Use test settings."""
-    from app.core.config import Settings
+class DummySentenceTransformer:
+    """Lightweight stub for SentenceTransformer."""
+    def __init__(self, model_name=None):
+        self.model_name = model_name or "dummy"
+    def encode(self, sentences, convert_to_numpy=True, show_progress_bar=False, **kwargs):
+        if isinstance(sentences, str):
+            sentences = [sentences]
+        # Return deterministic dummy embeddings
+        return np.random.rand(len(sentences), 384).astype('float32')
 
-    # Override settings for testing
+class DummyPdfplumber:
+    """Stub for pdfplumber."""
+    class PDF:
+        def __init__(self, pages_data):
+            self.pages = pages_data
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+    @staticmethod
+    def open(file_path):
+        # Return dummy PDF with no pages by default; tests will override
+        return DummyPdfplumber.PDF([])
+
+# Insert dummy modules before any app imports
+_dummy_st = MagicMock()
+_dummy_st.SentenceTransformer = DummySentenceTransformer
+sys.modules['sentence_transformers'] = _dummy_st
+
+_dummy_pdf = MagicMock()
+_dummy_pdfplumber = MagicMock()
+_dummy_pdfplumber.open = DummyPdfplumber.open
+sys.modules['pdfplumber'] = _dummy_pdfplumber
+
+# Also stub transformers to avoid import errors
+_dummy_transformers = MagicMock()
+sys.modules['transformers'] = _dummy_transformers
+sys.modules['torch'] = MagicMock()
+sys.modules['tensorflow'] = MagicMock()
+sys.modules['absl'] = MagicMock()
+
+# ============================================================
+# Fixtures
+# ============================================================
+
+@pytest.fixture(autouse=True)
+def clean_env(monkeypatch):
+    """Clean environment variables that interfere with settings."""
+    # Remove Ollama environment variables that cause validation errors
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
+    
+    # Set test environment
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
 
+
+@pytest.fixture
+def mock_settings(clean_env):
+    """Use test settings."""
+    from app.core.config import Settings
     return Settings()
 
 
 @pytest.fixture
 def sample_pdf_content() -> bytes:
     """Sample PDF content for testing."""
-    # Minimal valid PDF
     return b"""%PDF-1.4
 1 0 obj<</Type/Catalog>>endobj
 2 0 obj<</Type/Pages/Count 1>>endobj
@@ -85,14 +141,13 @@ def sample_chunks() -> list:
 @pytest.fixture
 def temp_data_dir(tmp_path):
     """Create temporary data directory."""
+    from app.core.config import settings
+    # Temporarily override data_dir
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-
-    # Create subdirectories
     (data_dir / "raw").mkdir()
     (data_dir / "vector_store").mkdir()
     (data_dir / "parsed").mkdir()
-
     return data_dir
 
 
@@ -100,7 +155,6 @@ def temp_data_dir(tmp_path):
 def mock_client():
     """Create test client with mocked dependencies."""
     from unittest.mock import patch, MagicMock
-
     from app.main import app
 
     with patch("app.services.llm.llm_service_local.LLMServiceLocal") as mock_llm:

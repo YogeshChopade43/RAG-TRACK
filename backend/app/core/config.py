@@ -80,6 +80,19 @@ class Settings(BaseSettings):
     # Vector Store
     vector_store_type: str = "faiss"  # faiss, qdrant, pinecone
 
+    # Reranking
+    use_reranking: bool = True
+    use_llm_reranking: bool = False
+    rerank_top_k: int = 20
+    rerank_weights: dict = Field(
+        default_factory=lambda: {
+            "semantic": 0.40,
+            "keyword": 0.25,
+            "original": 0.25,
+            "llm": 0.10,
+        }
+    )
+
     # LLM
     openrouter_api_key: Optional[str] = Field(
         default=None, validation_alias="OPENROUTER_API_KEY"
@@ -105,6 +118,10 @@ class Settings(BaseSettings):
     # Observability
     trace_enabled: bool = True
     trace_storage_path: str = "backend/traces"
+
+    # Ollama (for local LLM support)
+    ollama_base_url: Optional[str] = Field(default=None, validation_alias="OLLAMA_BASE_URL")
+    ollama_model: Optional[str] = Field(default=None, validation_alias="OLLAMA_MODEL")
 
     # Logging
     log_level: str = "INFO"
