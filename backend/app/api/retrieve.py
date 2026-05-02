@@ -116,10 +116,10 @@ def get_retrieval_service() -> RetrievalService:
 @lru_cache(maxsize=1)
 def get_llm_service():
     """Get LLM service singleton."""
-    from app.services.llm.llm_service import LLMService
+    from app.services.llm import get_llm_service as _get_llm_service
 
-    logger.debug("Creating LLMService instance")
-    return LLMService()
+    logger.debug("Creating LLM service instance")
+    return _get_llm_service()
 
 
 def get_query_rewrite_service() -> QueryRewriteService:

@@ -15,11 +15,11 @@ class TestQueryRewriteService:
     def service(self):
         """Create service with mocked LLM."""
         with patch(
-            "app.services.query.query_rewrite.query_rewrite_service.LLMServiceLocal"
-        ) as mock_cls:
+            "app.services.query.query_rewrite.query_rewrite_service.get_llm_service"
+        ) as mock_get_llm:
             mock_instance = MagicMock()
             mock_instance.chat.return_value = "transformed query"
-            mock_cls.return_value = mock_instance
+            mock_get_llm.return_value = mock_instance
             service = QueryRewriteService()
             service.llm = mock_instance
             return service

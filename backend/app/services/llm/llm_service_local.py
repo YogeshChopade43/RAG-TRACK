@@ -6,7 +6,6 @@ Provides LLM integration with Ollama's local API.
 
 import logging
 import os
-import json
 import re
 from typing import Optional
 

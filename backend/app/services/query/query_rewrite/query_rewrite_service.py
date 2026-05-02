@@ -1,23 +1,14 @@
-from app.services.llm.llm_service_local import LLMServiceLocal
 import logging
 import re
+
+from app.services.llm import get_llm_service
 
 logger = logging.getLogger(__name__)
 
 
 class QueryRewriteService:
-    """
-    Production-grade query rewriting service.
-
-    Responsibilities:
-    - Decide if a query should be rewritten
-    - Generate a retrieval-optimized query
-    - Clean and validate LLM output
-    - Fallback safely if rewrite fails
-    """
-
     def __init__(self):
-        self.llm = LLMServiceLocal()
+        self.llm = get_llm_service()
 
         # words that signal ambiguous queries
         self.pronouns = [

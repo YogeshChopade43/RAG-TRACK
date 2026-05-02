@@ -299,7 +299,19 @@ pip install -r requirements.txt
 # Configure environment
 copy .env.example .env   # Windows
 # cp .env.example .env    # Linux/Mac
+
+# Choose your LLM provider:
+
+## Option 1: Cloud API (OpenRouter)
 # Edit .env and add your OPENROUTER_API_KEY
+
+## Option 2: Local LLM (Ollama - completely free)
+# Uncomment Ollama settings in .env:
+# USE_LOCAL_LLM=true
+# OLLAMA_BASE_URL=http://localhost:11434
+# OLLAMA_MODEL=llama3.2:1b
+# Then install Ollama and pull a model:
+# ollama pull llama3.2:1b
 
 # Run the server
 cd backend
@@ -349,7 +361,8 @@ Copy <code>.env.example</code> to <code>.env</code> and configure:
 <tr><td>Files</td><td><code>MAX_FILE_SIZE_MB</code></td><td>Maximum upload file size</td></tr>
 <tr><td>Chunking</td><td><code>CHUNK_SIZE</code>, <code>CHUNK_OVERLAP</code></td><td>Chunking parameters</td></tr>
 <tr><td>Embedding</td><td><code>EMBEDDING_MODEL</code></td><td>Sentence-transformers model</td></tr>
-<tr><td>LLM</td><td><code>OPENROUTER_API_KEY</code>, <code>LLM_MODEL</code></td><td>LLM provider config</td></tr>
+<tr><td>LLM (Cloud)</td><td><code>OPENROUTER_API_KEY</code>, <code>LLM_MODEL</code></td><td>OpenRouter API config</td></tr>
+<tr><td>LLM (Local)</td><td><code>USE_LOCAL_LLM</code>, <code>OLLAMA_BASE_URL</code>, <code>OLLAMA_MODEL</code></td><td>Ollama local LLM config</td></tr>
 <tr><td>Retrieval</td><td><code>TOP_K_RETRIEVAL</code></td><td>Number of chunks to retrieve</td></tr>
 <tr><td>Observability</td><td><code>TRACE_ENABLED</code></td><td>Enable query tracing</td></tr>
 </table>

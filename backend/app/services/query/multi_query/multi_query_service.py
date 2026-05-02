@@ -1,13 +1,13 @@
 import logging
 
-from app.services.llm.llm_service_local import LLMServiceLocal
+from app.services.llm import get_llm_service
 
 logger = logging.getLogger(__name__)
 
 
 class MultiQueryService:
     def __init__(self):
-        self.llm = LLMServiceLocal()
+        self.llm = get_llm_service()
 
     def _decide_expansion_count(self, total_sub_queries: int) -> int:
         """

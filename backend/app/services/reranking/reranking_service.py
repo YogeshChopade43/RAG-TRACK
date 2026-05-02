@@ -292,8 +292,8 @@ class RerankingService:
 
         # Import here to avoid circular dependencies
         try:
-            from app.services.llm.llm_service_local import LLMServiceLocal
-            llm = LLMServiceLocal.get_instance()
+            from app.services.llm import get_llm_service
+            llm = get_llm_service()
         except Exception as e:
             logger.warning(f"LLM scoring unavailable: {e}")
             return [0.0 for _ in chunks]

@@ -1,12 +1,12 @@
 import re
 from typing import List
 
-from app.services.llm.llm_service_local import LLMServiceLocal
+from app.services.llm import get_llm_service
 
 
 class GenerationService:
     def __init__(self):
-        self.llm = LLMServiceLocal()
+        self.llm = get_llm_service()
 
     def build_context(self, retrieved_chunks):
         # combine top-k chunks into readable context

@@ -49,18 +49,19 @@ class TestQueryEndpoint:
     @pytest.fixture
     def client(self):
         """Create test client with mocked services."""
-        with patch("app.services.llm.llm_service_local.LLMServiceLocal") as mock_llm:
-            mock_instance = MagicMock()
-            mock_instance.chat.return_value = "Test answer"
-            mock_llm.return_value = mock_instance
+        with patch("app.services.llm.get_llm_service") as mock_get_llm:
+            mock_llm = MagicMock()
+            mock_llm.chat.return_value = "Test answer"
+            mock_get_llm.return_value = mock_llm
 
             with patch("app.services.retrieval.retrieval_service.SentenceTransformer"):
                 with patch(
                     "app.services.embedding.embedding_service.SentenceTransformer"
                 ):
-                    from app.main import app
-
-                    yield TestClient(app)
+                    with patch("app.services.llm.get_llm_service") as mock_llm2:
+                        mock_llm2.return_value = MagicMock()
+                        from app.main import app
+                        yield TestClient(app)
 
     def test_query_requires_document_id(self, client):
         """Test query requires document_id."""

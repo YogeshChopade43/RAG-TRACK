@@ -2,7 +2,7 @@
 Unit tests for GenerationService.
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from app.services.generation.generation_service import GenerationService
 
 
@@ -35,12 +35,11 @@ class TestGenerationService:
 
     def test_generate_returns_string(self, sample_chunks):
         """Test that generate returns a string response."""
-        with patch('app.services.generation.generation_service.LLMServiceLocal') as mock_llm_class:
-            mock_llm = Mock()
-            mock_llm.chat.return_value = "The fox is quick and brown."
-            mock_llm_class.return_value = mock_llm
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "The fox is quick and brown."
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
             service = GenerationService()
-
             result = service.generate("What color is the fox?", sample_chunks)
 
             assert isinstance(result, str)
@@ -49,12 +48,11 @@ class TestGenerationService:
 
     def test_generate_handles_empty_chunks(self):
         """Test generation with empty chunks list."""
-        with patch('app.services.generation.generation_service.LLMServiceLocal') as mock_llm_class:
-            mock_llm = Mock()
-            mock_llm.chat.return_value = "I don't have enough information to answer."
-            mock_llm_class.return_value = mock_llm
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "I don't have enough information to answer."
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
             service = GenerationService()
-
             result = service.generate("What is the answer?", [])
 
             assert isinstance(result, str)
@@ -62,18 +60,16 @@ class TestGenerationService:
 
     def test_generate_constructs_proper_prompt(self, sample_chunks):
         """Test that the prompt is constructed correctly."""
-        with patch('app.services.generation.generation_service.LLMServiceLocal') as mock_llm_class:
-            mock_llm = Mock()
-            mock_llm.chat.return_value = "Test response"
-            mock_llm_class.return_value = mock_llm
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "Test response"
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
             service = GenerationService()
-
             service.generate("Test question", sample_chunks)
 
-            # Check that chat was called with a prompt containing context and question
             call_args = mock_llm.chat.call_args
-            system_prompt = call_args[0][0]  # First positional argument
-            user_prompt = call_args[0][1]    # Second positional argument
+            system_prompt = call_args[0][0]
+            user_prompt = call_args[0][1]
 
             assert "Test question" in user_prompt
             assert "The quick brown fox jumps over the lazy dog." in user_prompt
@@ -81,10 +77,10 @@ class TestGenerationService:
 
     def test_generate_handles_llm_error(self, sample_chunks):
         """Test error handling when LLM service fails."""
-        with patch('app.services.generation.generation_service.LLMServiceLocal') as mock_llm_class:
-            mock_llm = Mock()
-            mock_llm.chat.side_effect = Exception("LLM service unavailable")
-            mock_llm_class.return_value = mock_llm
+        mock_llm = MagicMock()
+        mock_llm.chat.side_effect = Exception("LLM service unavailable")
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
             service = GenerationService()
 
             with pytest.raises(Exception, match="LLM service unavailable"):
@@ -92,27 +88,24 @@ class TestGenerationService:
 
     def test_build_context_combines_chunks(self, sample_chunks):
         """Test that build_context combines chunk texts properly."""
-        with patch('app.services.generation.generation_service.LLMServiceLocal') as mock_llm_class:
-            mock_llm = Mock()
-            mock_llm.chat.return_value = "Response"
-            mock_llm_class.return_value = mock_llm
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "Response"
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
             service = GenerationService()
-
             context = service.build_context(sample_chunks)
 
             assert "The quick brown fox jumps over the lazy dog." in context
             assert "Python is a popular programming language." in context
-            assert "\n\n" in context  # Should be separated by double newline
+            assert "\n\n" in context
 
     def test_normalize_answer_strips_whitespace(self):
         """Test answer normalization removes extra whitespace."""
-        with patch('app.services.generation.generation_service.LLMServiceLocal') as mock_llm_class:
-            mock_llm = Mock()
-            mock_llm.chat.return_value = "  Answer:   Test   "
-            mock_llm_class.return_value = mock_llm
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "  Answer:   Test   "
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
             service = GenerationService()
-
-            # Mock _build_prompts to avoid full flow
             with patch.object(service, '_build_prompts', return_value=("sys", "usr")):
                 with patch.object(service, '_normalize_answer', wraps=service._normalize_answer) as mock_norm:
                     service.generate("Q", [{"chunk_text": "C"}])
@@ -120,13 +113,21 @@ class TestGenerationService:
 
     def test_normalize_answer_removes_answer_prefix(self):
         """Test that 'Answer:' prefix is removed."""
-        service = GenerationService()
-        text = "Answer: The fox is brown."
-        normalized = service._normalize_answer(text)
-        assert normalized == "The fox is brown."
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "test"
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
+            service = GenerationService()
+            text = "Answer: The fox is brown."
+            normalized = service._normalize_answer(text)
+            assert normalized == "The fox is brown."
 
     def test_normalize_answer_handles_empty_text(self):
         """Test normalization of empty text."""
-        service = GenerationService()
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = "test"
+        
+        with patch('app.services.generation.generation_service.get_llm_service', return_value=mock_llm):
+            service = GenerationService()
         assert service._normalize_answer("") == ""
         assert service._normalize_answer(None) is None

@@ -157,10 +157,10 @@ def mock_client():
     from unittest.mock import patch, MagicMock
     from app.main import app
 
-    with patch("app.services.llm.llm_service_local.LLMServiceLocal") as mock_llm:
+    with patch("app.services.llm.get_llm_service") as mock_get_llm:
         mock_instance = MagicMock()
         mock_instance.chat.return_value = "Test response"
-        mock_llm.return_value = mock_instance
+        mock_get_llm.return_value = mock_instance
 
         with patch("app.services.retrieval.retrieval_service.SentenceTransformer"):
             with patch("app.services.embedding.embedding_service.SentenceTransformer"):
