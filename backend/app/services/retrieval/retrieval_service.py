@@ -64,6 +64,64 @@ class RetrievalService:
         )
         return index, metadata
 
+    def _search_vector_only(
+        self,
+        document_id: str,
+        query: str,
+        top_k: int = 3,
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform pure vector similarity search without reranking.
+
+        Extracted for use in hybrid search (vector + BM25 fusion).
+
+        Args:
+            document_id: UUID of the document
+            query: Search query string
+            top_k: Number of results to return
+
+        Returns:
+            List of result dicts with score, chunk_text, metadata, etc.
+        """
+        index, metadata = self._load_index(document_id)
+
+        if index is None:
+            return []
+
+        # Encode query
+        logger.debug(f"Encoding query for vector search, length: {len(query)}")
+        query_embedding = self.model.encode(query)
+        query_embedding = query_embedding.astype("float32")
+        query_embedding = query_embedding.reshape(1, -1)
+
+        # Search
+        distances, indices = index.search(query_embedding, top_k)
+
+        # Format results
+        results = []
+        for dist, idx in zip(distances[0], indices[0]):
+            if idx < len(metadata):
+                item = metadata[idx]
+                score = 1.0 / (1.0 + dist)
+                results.append(
+                    {
+                        "score": round(score, 4),
+                        "chunk_text": item["chunk_text"],
+                        "file_name": item["file_name"],
+                        "page_number": item["page_number"],
+                        "chunk_id": item["chunk_id"],
+                        "metadata": {
+                            "file_name": item.get("file_name"),
+                            "page_number": item.get("page_number"),
+                        },
+                    }
+                )
+
+        logger.info(
+            f"Vector search returned {len(results)} candidates for document {document_id}"
+        )
+        return results
+
     def search(
         self,
         document_id: str,

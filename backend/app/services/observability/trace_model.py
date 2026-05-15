@@ -50,6 +50,8 @@ class TraceModel(BaseModel):
 
     # Retrieval
     retrieved_chunks: List[RetrievalChunk] = []
+    bm25_results: List[RetrievalChunk] = []  # Raw BM25 results before fusion
+    fusion_details: Optional[Dict[str, Any]] = None  # Fusion weights and counts
     reranked_chunks: List[RankedChunk] = []
     ranking_summary: Optional[RankingSummary] = None
     ranking_weights: Optional[Dict[str, float]] = None

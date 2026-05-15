@@ -130,3 +130,36 @@ class TraceService:
             self.trace.retrieved_chunks.extend(formatted_chunks)
         else:
             self.trace.retrieved_chunks = formatted_chunks
+
+    # ---------- HYBRID SEARCH TRACKING ----------
+
+    def set_bm25_results(self, chunks: List[dict]):
+        """
+        Set raw BM25 results before fusion.
+
+        Args:
+            chunks: List of BM25 result dicts (chunk_id, score, chunk_text, etc.)
+        """
+        formatted = [
+            RetrievalChunk(
+                chunk_id=c.get("chunk_id", ""),
+                content=c.get("chunk_text", ""),
+                score=c.get("score", 0.0),
+                metadata=c.get("metadata", {})
+            )
+            for c in chunks
+        ]
+        self.trace.bm25_results = formatted
+
+    def set_fusion_info(self, fusion_details: Dict[str, Any]):
+        """
+        Set hybrid fusion metadata.
+
+        Args:
+            fusion_details: Dict with keys like:
+                - vector_count: int
+                - bm25_count: int
+                - fused_count: int
+                - fusion_weights: {"bm25": float, "vector": float}
+        """
+        self.trace.fusion_details = fusion_details

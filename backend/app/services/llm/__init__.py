@@ -24,7 +24,7 @@ def get_llm_service():
     """
     from app.core.config import settings
     
-    if USE_LOCAL_LLM or settings.ollama_base_url:
+    if settings.use_local_llm or settings.ollama_base_url:
         logger.info("Using local LLM (Ollama)")
         from app.services.llm.llm_service_local import LLMServiceLocal
         return LLMServiceLocal.get_instance()

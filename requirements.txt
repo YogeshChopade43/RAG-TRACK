@@ -22,6 +22,7 @@ torch==2.2.2
 numpy==1.26.4
 faiss-cpu==1.8.0
 scikit-learn==1.4.0
+rank-bm25==0.2.2
 
 # -------- LLM --------
 openai>=1.14.0

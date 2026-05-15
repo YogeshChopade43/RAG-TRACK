@@ -7,7 +7,7 @@ Provides semantic search and question answering over uploaded documents.
 import logging
 import re
 from functools import lru_cache
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -17,6 +17,7 @@ from slowapi.util import get_remote_address
 from app.core.config import settings
 from app.core.ratelimit import default_limit
 from app.core.auth import get_api_key
+from app.services.retrieval.hybrid_service import HybridRetrievalService
 from app.services.retrieval.retrieval_service import RetrievalService
 from app.services.generation.generation_service import GenerationService
 from app.services.query.query_rewrite.query_rewrite_service import QueryRewriteService
@@ -114,6 +115,13 @@ def get_retrieval_service() -> RetrievalService:
 
 
 @lru_cache(maxsize=1)
+def get_hybrid_retrieval_service() -> HybridRetrievalService:
+    """Get hybrid retrieval service singleton."""
+    logger.debug("Creating HybridRetrievalService instance")
+    return HybridRetrievalService()
+
+
+@lru_cache(maxsize=1)
 def get_llm_service():
     """Get LLM service singleton."""
     from app.services.llm import get_llm_service as _get_llm_service
@@ -140,6 +148,14 @@ def get_multi_query_service() -> MultiQueryService:
 def get_generation_service() -> GenerationService:
     """Get generation service."""
     return GenerationService()
+
+
+def get_retriever() -> Union[RetrievalService, HybridRetrievalService]:
+    """Get appropriate retrieval service based on hybrid search setting."""
+    if settings.enable_hybrid_search:
+        return get_hybrid_retrieval_service()
+    else:
+        return get_retrieval_service()
 
 
 # =============================================================================
@@ -170,7 +186,7 @@ def get_generation_service() -> GenerationService:
 async def query_documents(
     request: Request,
     query_request: QueryRequest,
-    retriever: RetrievalService = Depends(get_retrieval_service),
+    retriever: Union[RetrievalService, HybridRetrievalService] = Depends(get_retriever),
     rewriter: QueryRewriteService = Depends(get_query_rewrite_service),
     decomposer: QueryDecompositionService = Depends(get_query_decomposition_service),
     multi_query: MultiQueryService = Depends(get_multi_query_service),
@@ -212,46 +228,53 @@ async def query_documents(
             )
 
         # Step 2c: Retrieval for each expanded query
-            for eq in expanded_queries:
-                trace_service.start_timer("retrieval")
-                result = retriever.search(
-                    query_request.document_id,
-                    eq,
-                    top_k=top_k,
-                    use_reranking=True,
+        for eq in expanded_queries:
+            trace_service.start_timer("retrieval")
+            result = retriever.search(
+                query_request.document_id,
+                eq,
+                top_k=top_k,
+            )
+            matches = result.get("matches", [])
+            trace_service.end_timer("retrieval")
+
+            # Hybrid search: trace BM25 results and fusion metadata
+            bm25_results = result.get("bm25_results", [])
+            if bm25_results:
+                trace_service.set_bm25_results(bm25_results)
+
+            fusion_details = result.get("fusion_details", {})
+            if fusion_details:
+                trace_service.set_fusion_info(fusion_details)
+
+            # Track reranking if hybrid service applied it
+            if result.get("reranking_applied"):
+                raw_reranked = result.get("reranker_raw_items", matches)
+                trace_service.set_reranked_chunks(raw_reranked)
+                ranking_summary = result.get("ranking_summary", {})
+                trace_service.set_ranking_summary(ranking_summary)
+                trace_service.set_signal_scores(
+                    result.get("signal_scores", {})
                 )
-                matches = result.get("matches", [])
-                trace_service.end_timer("retrieval")
+                trace_service.set_ranking_weights(
+                    result.get("weights_used", {})
+                )
 
-                # Track reranking in trace if applied
-                if result.get("reranking_applied"):
-                    trace_service.set_reranked_chunks(
-                        result.get("top_k_items", matches)
-                    )
-                    ranking_summary = result.get("ranking_summary", {})
-                    trace_service.set_ranking_summary(ranking_summary)
-                    trace_service.set_signal_scores(
-                        result.get("signal_scores", {})
-                    )
-                    trace_service.set_ranking_weights(
-                        result.get("weights_used", {})
-                    )
-
-                # Convert to trace format
-                formatted_chunks = [
-                    {
-                        "chunk_id": chunk["chunk_id"],
-                        "content": chunk["chunk_text"],
-                        "score": chunk["score"],
-                        "metadata": {
-                            "file_name": chunk.get("file_name"),
-                            "page_number": chunk.get("page_number"),
-                        },
-                    }
-                    for chunk in matches
-                ]
-                trace_service.append_retrieved_chunks(formatted_chunks)
-                all_chunks.extend(matches)
+            # Convert to trace format (always)
+            formatted_chunks = [
+                {
+                    "chunk_id": chunk["chunk_id"],
+                    "content": chunk.get("chunk_text") or chunk.get("content", ""),
+                    "score": chunk["score"],
+                    "metadata": {
+                        "file_name": chunk.get("file_name"),
+                        "page_number": chunk.get("page_number"),
+                    },
+                }
+                for chunk in matches
+            ]
+            trace_service.append_retrieved_chunks(formatted_chunks)
+            all_chunks.extend(matches)
 
         # Step 3: Deduplicate chunks
         unique_chunks = {c["chunk_id"]: c for c in all_chunks}.values()

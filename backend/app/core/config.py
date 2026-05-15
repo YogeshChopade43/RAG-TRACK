@@ -11,12 +11,15 @@ from typing import List, Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Determine project root (parent of backend directory)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
@@ -93,7 +96,19 @@ class Settings(BaseSettings):
         }
     )
 
+    # Hybrid Search
+    enable_hybrid_search: bool = True
+    hybrid_weights: dict = Field(
+        default_factory=lambda: {
+            "bm25": 0.3,
+            "vector": 0.7,
+        }
+    )
+
     # LLM
+    use_local_llm: bool = Field(
+        default=False, validation_alias="USE_LOCAL_LLM"
+    )
     openrouter_api_key: Optional[str] = Field(
         default=None, validation_alias="OPENROUTER_API_KEY"
     )

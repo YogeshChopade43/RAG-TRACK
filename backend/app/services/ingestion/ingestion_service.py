@@ -21,6 +21,7 @@ from app.services.embedding.embedding_service import EmbeddingService
 from app.services.generic.update_vector_store import save_document_vector_store
 from app.services.generic.utils.parser_utils import get_page_text
 from app.services.parsing.parsing_service import ParsingService
+from app.services.retrieval.bm25.service import BM25Service
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 parsing_service = ParsingService()
 chunking_service = ChunkingService()
 embedding_service = EmbeddingService()
+bm25_service = BM25Service()
 
 
 def _cleanup_partial_files(document_id: str) -> None:
@@ -37,6 +39,7 @@ def _cleanup_partial_files(document_id: str) -> None:
         settings.vector_store_dir / f"{document_id}.index",
         settings.vector_store_dir / f"{document_id}_metadata.json",
         settings.vector_store_dir / f"{document_id}.json",
+        settings.vector_store_dir / f"{document_id}_bm25.pkl",
     ]
 
     for path in paths_to_remove:
@@ -130,6 +133,20 @@ def ingest(document_id: str, filename: str) -> dict:
                 stage="vector_store",
                 document_id=document_id,
             ) from e
+
+        logger.info(f"[{document_id}] Vector store saved successfully")
+
+        # Stage 5: Build BM25 index (best-effort, don't fail ingestion if this fails)
+        logger.debug(f"[{document_id}] BM25 index build starting")
+        try:
+            bm25_path = bm25_service.build_index(chunks, document_id)
+            if bm25_path:
+                logger.info(f"[{document_id}] BM25 index built at {bm25_path}")
+            else:
+                logger.warning(f"[{document_id}] BM25 index build returned no path")
+        except Exception as e:
+            # Log warning but don't fail ingestion - hybrid search can degrade gracefully
+            logger.warning(f"[{document_id}] BM25 index build failed (non-critical): {e}")
 
         logger.info(f"[{document_id}] Ingestion completed successfully")
 
