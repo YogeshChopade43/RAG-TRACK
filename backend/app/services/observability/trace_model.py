@@ -7,7 +7,7 @@ class RetrievalChunk(BaseModel):
     chunk_id: str
     content: str
     score: float
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RankingSignal(BaseModel):
@@ -46,16 +46,16 @@ class TraceModel(BaseModel):
     # Query
     original_query: str
     rewritten_query: Optional[str] = None
-    decomposed_queries: List[str] = []
+    decomposed_queries: List[str] = Field(default_factory=list)
 
     # Retrieval
-    retrieved_chunks: List[RetrievalChunk] = []
-    bm25_results: List[RetrievalChunk] = []  # Raw BM25 results before fusion
-    fusion_details: Optional[Dict[str, Any]] = None  # Fusion weights and counts
-    reranked_chunks: List[RankedChunk] = []
+    retrieved_chunks: List[RetrievalChunk] = Field(default_factory=list)
+    bm25_results: List[RetrievalChunk] = Field(default_factory=list)
+    fusion_details: Optional[Dict[str, Any]] = None
+    reranked_chunks: List[RankedChunk] = Field(default_factory=list)
     ranking_summary: Optional[RankingSummary] = None
     ranking_weights: Optional[Dict[str, float]] = None
-    signal_scores: Optional[Dict[str, float]] = None
+    signal_scores: Optional[Dict[str, Optional[float]]] = None
 
     # Context
     final_context: Optional[str] = None
@@ -64,7 +64,7 @@ class TraceModel(BaseModel):
     llm_response: Optional[str] = None
 
     # Metrics
-    latency: Dict[str, float] = {}
+    latency: Dict[str, float] = Field(default_factory=dict)
 
     # Errors
     error: Optional[str] = None

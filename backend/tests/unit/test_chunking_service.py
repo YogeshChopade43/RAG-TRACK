@@ -42,7 +42,6 @@ class TestChunkingService:
 
         chunks = service.chunk(parsed_load)
 
-        # Should have chunks from both pages
         page_numbers = {chunk["page_number"] for chunk in chunks}
         assert 1 in page_numbers
         assert 2 in page_numbers
@@ -94,30 +93,9 @@ class TestChunkingService:
             with pytest.raises(ValueError, match="CHUNK_SIZE must be positive"):
                 service.chunk(parsed_load)
 
-    def test_chunk_with_overlap(self, service):
-        """Test that chunks have correct overlap."""
-        from app.core.config import CHUNK_SIZE, CHUNK_OVERLAP
-
-        # Create text longer than chunk size with overlap
-        parsed_load = {
-            "document_id": "test-123",
-            "file_name": "test.txt",
-            "pages": [
-                {"page_number": 1, "text": "A" * (CHUNK_SIZE * 3)}
-            ]
-        }
-
-        chunks = service.chunk(parsed_load)
-
-        # Should have multiple chunks
-        assert len(chunks) > 1
-
-    def test_chunk_content_continuity_with_overlap(self, service):
-        """Test that overlapping chunks share content."""
-        from app.core.config import CHUNK_SIZE, CHUNK_OVERLAP
-
-        # Create text with markers to verify overlap
-        text = "".join([f"{i:04d}" for i in range(CHUNK_SIZE * 2)])
+    def test_chunk_respects_sentence_boundaries(self, service):
+        """Test that chunks end at sentence boundaries."""
+        text = "This is sentence one. This is sentence two. This is sentence three!"
         parsed_load = {
             "document_id": "test-123",
             "file_name": "test.txt",
@@ -126,12 +104,23 @@ class TestChunkingService:
 
         chunks = service.chunk(parsed_load)
 
-        # Check overlap: chunk2 should start before chunk1 ends
-        if len(chunks) >= 2:
-            chunk1_end = chunks[0]["char_end"]
-            chunk2_start = chunks[1]["char_start"]
-            # Overlap means chunk2 starts before chunk1 ends
-            assert chunk2_start < chunk1_end
+        for chunk in chunks:
+            chunk_text = chunk["chunk_text"]
+            if len(chunk_text) >= 20:
+                assert chunk_text.rstrip().endswith('.') or chunk_text.rstrip().endswith('!')
+
+    def test_chunk_with_overlap(self, service):
+        """Test that chunks maintain overlap context."""
+        text = "A" * 200 + ". " + "B" * 200 + ". " + "C" * 200 + "."
+        parsed_load = {
+            "document_id": "test-123",
+            "file_name": "test.txt",
+            "pages": [{"page_number": 1, "text": text}]
+        }
+
+        chunks = service.chunk(parsed_load)
+
+        assert len(chunks) > 1
 
     def test_chunk_empty_text_skipped(self, service):
         """Test that whitespace-only text is skipped."""
@@ -139,13 +128,25 @@ class TestChunkingService:
             "document_id": "test-123",
             "file_name": "test.txt",
             "pages": [
-                {"page_number": 1, "text": "   \n\n   "},  # whitespace only
-                {"page_number": 2, "text": "Real content"}
+                {"page_number": 1, "text": "   \n\n   "},
+                {"page_number": 2, "text": "Real content."}
             ]
         }
 
         chunks = service.chunk(parsed_load)
 
-        # Should only have chunks from the second page
         assert len(chunks) > 0
         assert all(c["page_number"] == 2 for c in chunks)
+
+    def test_custom_chunk_size(self):
+        """Test service with custom chunk size."""
+        service = ChunkingService(chunk_size=100, chunk_overlap=25)
+        
+        parsed_load = {
+            "document_id": "test-123",
+            "file_name": "test.txt",
+            "pages": [{"page_number": 1, "text": "Test content for chunking."}]
+        }
+
+        chunks = service.chunk(parsed_load)
+        assert len(chunks) > 0

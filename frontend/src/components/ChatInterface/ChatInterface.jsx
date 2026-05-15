@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
+import TraceViewer from "../TraceViewer/TraceViewer";
 import "./ChatInterface.css";
 
 const ChatInterface = ({ inputValue, onInputChange, onAsk, isLoading, disabled, messages }) => {
@@ -118,6 +119,9 @@ const ChatInterface = ({ inputValue, onInputChange, onAsk, isLoading, disabled, 
                   </div>
                 )}
               </div>
+              {msg.role === "assistant" && msg.traceId && (
+                <TraceViewer traceId={msg.traceId} />
+              )}
             </div>
           </Motion.div>
         ))}

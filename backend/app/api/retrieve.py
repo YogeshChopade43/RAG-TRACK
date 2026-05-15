@@ -211,6 +211,7 @@ async def query_documents(
         logger.debug(f"Decomposed into {len(sub_queries)} sub-queries")
 
         all_chunks = []
+        all_formatted_chunks = []
 
         # Step 2: Process each sub-query
         for q in sub_queries:
@@ -273,8 +274,14 @@ async def query_documents(
                 }
                 for chunk in matches
             ]
-            trace_service.append_retrieved_chunks(formatted_chunks)
+            all_formatted_chunks.extend(formatted_chunks)
             all_chunks.extend(matches)
+
+        # Deduplicate retrieved chunks before saving to trace
+        unique_trace_chunks = list(
+            {c["chunk_id"]: c for c in all_formatted_chunks}.values()
+        )
+        trace_service.append_retrieved_chunks(unique_trace_chunks)
 
         # Step 3: Deduplicate chunks
         unique_chunks = {c["chunk_id"]: c for c in all_chunks}.values()

@@ -51,4 +51,8 @@ class TraceStorage:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        # Handle datetime deserialization
+        if "timestamp" in data and isinstance(data["timestamp"], str):
+            data["timestamp"] = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+
         return TraceModel(**data)

@@ -18,6 +18,9 @@ sentence-transformers==2.7.0
 transformers==4.38.2
 torch==2.2.2
 
+# -------- Text processing --------
+nltk==3.8.1
+
 # -------- Vector operations --------
 numpy==1.26.4
 faiss-cpu==1.8.0

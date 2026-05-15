@@ -103,8 +103,8 @@ function App() {
         return;
       }
 
-      const answer = queryData.answer || "";
-      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+const answer = queryData.answer || "";
+       setMessages((prev) => [...prev, { role: "assistant", content: answer, traceId: queryData.trace_id }]);
     } catch (err) {
       setError("Error: " + err.message);
       setMessages((prev) => prev.slice(0, -1));
