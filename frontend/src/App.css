@@ -5,6 +5,199 @@
   overflow-x: hidden;
 }
 
+/* Auth Loading */
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-gold-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Auth Form Container */
+.auth-form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-xl);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.auth-form-container h2 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  margin-bottom: var(--space-sm);
+}
+
+.auth-subtitle {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xl);
+}
+
+.auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.form-group input {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: border-color var(--motion-fast);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--color-gold-primary);
+}
+
+.form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  opacity: 0.7;
+  transition: opacity var(--motion-fast), color var(--motion-fast);
+}
+
+.password-input-wrapper input:focus + .password-toggle {
+  color: var(--color-gold-primary);
+  opacity: 1;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+  color: var(--color-text-secondary);
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-button {
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, var(--color-gold-primary), var(--color-gold-dark));
+  border: none;
+  border-radius: 8px;
+  color: var(--color-bg-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--motion-fast);
+  margin-top: var(--space-sm);
+}
+
+.auth-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.auth-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  margin-top: var(--space-lg);
+  font-size: 0.9rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--color-gold-primary);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  opacity: 0.8;
+}
+
+/* App Header with Logout */
+.app-header {
+  position: fixed;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 100;
+}
+
+.logout-button {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: 6px;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all var(--motion-fast);
+}
+
+.logout-button:hover {
+  background: rgba(255, 68, 68, 0.2);
+}
+
 .main-content {
   padding: var(--space-3xl) var(--space-lg);
   padding-bottom: var(--space-3xl);

@@ -158,6 +158,66 @@ def get_retriever() -> Union[RetrievalService, HybridRetrievalService]:
         return get_retrieval_service()
 
 
+def select_overview_chunks(chunks: List[dict], top_k: int) -> List[dict]:
+    """
+    Build a representative, document-wide spread of chunks for overview/summary
+    questions (instead of only the top-relevance chunks).
+
+    Ensures the document's opening chunk (usually the title/author/header) is
+    included and that selected chunks are spread across the whole document so
+    the generator can produce a balanced summary rather than over-focusing on
+    a single high-scoring section.
+
+    Args:
+        chunks: Deduplicated candidate chunks (any order).
+        top_k: Number of chunks to select.
+
+    Returns:
+        List of selected chunk dicts ordered for context building.
+    """
+    if not chunks:
+        return []
+
+    # Deduplicate by chunk_id, preserving order of first appearance
+    seen = set()
+    unique = []
+    for c in chunks:
+        cid = c.get("chunk_id")
+        if cid not in seen:
+            seen.add(cid)
+            unique.append(c)
+
+    # Sort by document position (page first, then chunk id) for a coherent spread
+    def _sort_key(c):
+        page = c.get("page_number") or 0
+        # Extract trailing numeric index from chunk_id if present
+        cid = c.get("chunk_id", "")
+        suffix = cid.rsplit("_chunk_", 1)[-1] if "_chunk_" in cid else "0"
+        try:
+            chunk_idx = int(suffix)
+        except ValueError:
+            chunk_idx = 0
+        return (page, chunk_idx)
+
+    ordered = sorted(unique, key=_sort_key)
+
+    if len(ordered) <= top_k:
+        return ordered
+
+    # Always include the first chunk (header/title), then evenly spread the rest
+    step = len(ordered) / top_k
+    selected = [ordered[0]]
+    picked = {0}
+    for i in range(1, top_k):
+        idx = min(len(ordered) - 1, int(round(i * step)))
+        if idx not in picked:
+            selected.append(ordered[idx])
+            picked.add(idx)
+
+    # Re-sort selected by document position for coherent context
+    return sorted(selected, key=_sort_key)
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -194,9 +254,19 @@ async def query_documents(
 ):
     """Query uploaded documents with a question."""
     # Use configured top_k or request value
-    top_k = query_request.top_k or settings.top_k_retrieval
+    base_top_k = query_request.top_k or settings.top_k_retrieval
+    top_k = base_top_k
 
-    logger.info(f"Processing query for document: {query_request.document_id}")
+    # Detect document-overview / summary intent
+    is_overview = rewriter.is_overview_question(query_request.question)
+    if is_overview:
+        # Pull more candidates so we can build a representative document-wide spread
+        top_k = max(base_top_k, settings.top_k_retrieval * 2)
+
+    logger.info(
+        f"Processing query for document: {query_request.document_id} "
+        f"(overview={is_overview})"
+    )
 
     trace_service = TraceService()
     trace_id = trace_service.start_trace(query_request.question)
@@ -284,13 +354,15 @@ async def query_documents(
         trace_service.append_retrieved_chunks(unique_trace_chunks)
 
         # Step 3: Deduplicate chunks
-        unique_chunks = {c["chunk_id"]: c for c in all_chunks}.values()
+        unique_chunks = list({c["chunk_id"]: c for c in all_chunks}.values())
 
-        # Step 4: Sort by score
-        sorted_chunks = sorted(unique_chunks, key=lambda x: x["score"], reverse=True)
-
-        # Step 5: Take top-k
-        retrieved_chunks = sorted_chunks[:top_k]
+        # Step 4/5: Select chunks for context
+        if is_overview:
+            # Overview/summary: use a document-wide spread instead of top-score
+            retrieved_chunks = select_overview_chunks(unique_chunks, base_top_k)
+        else:
+            sorted_chunks = sorted(unique_chunks, key=lambda x: x["score"], reverse=True)
+            retrieved_chunks = sorted_chunks[:top_k]
 
         logger.debug(f"Retrieved {len(retrieved_chunks)} unique chunks")
 
@@ -311,7 +383,9 @@ async def query_documents(
         trace_service.start_timer("generation")
 
         try:
-            answer = generator.generate(query_request.question, retrieved_chunks)
+            answer = generator.generate(
+                query_request.question, retrieved_chunks, is_overview=is_overview
+            )
             trace_service.set_response(answer)
         except Exception as e:
             logger.error(f"Generation failed: {str(e)}")

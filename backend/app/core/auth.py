@@ -1,7 +1,7 @@
 """
 API Authentication middleware.
 
-Validates API key from request headers.
+Validates API key from request headers and JWT tokens for user authentication.
 """
 
 import logging
@@ -19,6 +19,9 @@ API_KEY_HEADER = APIKeyHeader(
     name="X-API-Key",
     auto_error=False,
 )
+
+# In-memory token blacklist for logout (use Redis in production)
+_token_blacklist: set = set()
 
 
 async def get_api_key(
@@ -69,3 +72,37 @@ async def verify_api_key(
     Returns the API key if valid, raises 401/403 otherwise.
     """
     return await get_api_key(Header, api_key)
+
+
+def add_token_to_blacklist(token: str) -> None:
+    """Add a token to the blacklist."""
+    _token_blacklist.add(token)
+
+
+def is_token_blacklisted(token: str) -> bool:
+    """Check if a token is blacklisted."""
+    return token in _token_blacklist
+
+
+async def get_optional_current_user(request: Request) -> Optional[object]:
+    """
+    Get current user from JWT token if present.
+    
+    Supports both API key and JWT authentication.
+    Returns None for unauthenticated requests (for optional auth).
+    """
+    from app.core.security import decode_token
+    
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    
+    token = authorization.replace("Bearer ", "")
+    
+    try:
+        payload = decode_token(token)
+        if is_token_blacklisted(token):
+            return None
+        return {"id": payload.get("sub"), "type": payload.get("type")}
+    except Exception:
+        return None

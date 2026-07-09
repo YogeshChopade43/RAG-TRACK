@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion as Motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { useAuth } from "./contexts/AuthContext.jsx";
 import HeroSection from "./components/HeroSection/HeroSection";
 import PremiumFileUpload from "./components/PremiumFileUpload/PremiumFileUpload";
 import ChatInterface from "./components/ChatInterface/ChatInterface";
 import "./App.css";
 
 function App() {
+  const { getAuthHeaders, logout } = useAuth();
   const [file, setFile] = useState(null);
   const [documentId, setDocumentId] = useState(null);
   const [question, setQuestion] = useState("");
@@ -39,6 +41,7 @@ function App() {
       const uploadRes = await fetch("http://127.0.0.1:8000/ingest/", {
         method: "POST",
         body: formData,
+        headers: getAuthHeaders(),
       });
 
       const uploadData = await uploadRes.json();
@@ -58,7 +61,7 @@ function App() {
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [getAuthHeaders]);
 
   const askQuestion = useCallback(async () => {
     setError(null);
@@ -85,6 +88,7 @@ function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           document_id: documentId,
@@ -111,7 +115,7 @@ const answer = queryData.answer || "";
     } finally {
       setLoading(false);
     }
-  }, [question, documentId]);
+  }, [question, documentId, getAuthHeaders]);
 
   const handleReset = useCallback(() => {
     setFile(null);
@@ -135,6 +139,13 @@ const answer = queryData.answer || "";
     <div className="app">
       {/* Animated Gradient Background */}
       <div className="mesh-gradient"></div>
+
+      {/* Header with Logout */}
+      <header className="app-header">
+        <button className="logout-button" onClick={logout}>
+          Sign Out
+        </button>
+      </header>
 
       {/* Hero Section */}
       <Motion.section style={{ opacity: heroOpacity, scale: heroScale }}>
@@ -280,5 +291,3 @@ const answer = queryData.answer || "";
 }
 
 export default App;
-
-

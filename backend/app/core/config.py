@@ -120,6 +120,22 @@ class Settings(BaseSettings):
 
     # Authentication
     api_key: Optional[str] = Field(default=None, validation_alias="API_KEY")
+    
+    # JWT Settings
+    secret_key: str = Field(
+        default="your-secret-key-change-in-production",
+        validation_alias="SECRET_KEY",
+    )
+    algorithm: str = Field(default="HS256", validation_alias="ALGORITHM")
+    access_token_expire_minutes: int = Field(
+        default=30, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
+    refresh_token_expire_days: int = Field(
+        default=7, validation_alias="REFRESH_TOKEN_EXPIRE_DAYS"
+    )
+    
+    # Password validation
+    min_password_length: int = 8
 
     # Retrieval
     top_k_retrieval: int = 5

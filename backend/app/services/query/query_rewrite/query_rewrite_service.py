@@ -38,6 +38,51 @@ class QueryRewriteService:
     # ---------------------------------------------------------
     # Rewrite Decision Logic
     # ---------------------------------------------------------
+    def is_overview_question(self, question: str) -> bool:
+        """
+        Detect document-overview / summary questions.
+
+        These questions are about the document as a whole (e.g.
+        "what is this document about?", "summarize this file").
+        They should NOT be rewritten into generic keyword queries,
+        otherwise the document reference gets lost ("any document").
+
+        Specific questions like "what does the document say about X?" are
+        intentionally NOT treated as overview questions.
+        """
+        q = question.lower().strip()
+
+        # Explicit summary keywords always count
+        if any(
+            m in q
+            for m in ["summar", "summary", "overview", "tl;dr", "gist", "main idea", "main point"]
+        ):
+            return True
+
+        # Whole-document "about" patterns
+        about_patterns = [
+            "what is this document about",
+            "what is the document about",
+            "what is this file about",
+            "what is this doc about",
+            "what is this paper about",
+            "what is this resume about",
+            "what is this cv about",
+            "what is this pdf about",
+            "what's this document about",
+            "what's the document about",
+            "what's this file about",
+            "what's this doc about",
+            "what is the doc about",
+            "what's the doc about",
+            "what is this about",
+            "what's this about",
+            "tell me about this document",
+            "tell me about this file",
+            "tell me about this pdf",
+        ]
+        return any(p in q for p in about_patterns)
+
     def should_rewrite(self, question: str) -> bool:
         """
         Decide whether a question needs rewriting.
@@ -45,6 +90,11 @@ class QueryRewriteService:
         """
 
         q = question.lower().strip()
+
+        # Overview questions about the document itself are self-contained:
+        # do NOT rewrite them (prevents "the doc" -> "any document").
+        if self.is_overview_question(question):
+            return False
 
         # very short queries
         if len(q.split()) <= 3:
@@ -101,7 +151,11 @@ class QueryRewriteService:
 
             Instructions:
             - Remove conversational phrasing like "what is", "tell me", etc.
-            - Replace pronouns like "his", "her", "it" with a generic reference if needed
+            - Replace third-person pronouns like "his", "her", "they" with a generic
+              reference ONLY when they refer to a person/entity outside the document.
+            - NEVER replace references to the document itself (e.g. "the doc",
+              "this document", "this file") with "any document" or "the document".
+              Keep them as "this document".
             - Expand important concepts with synonyms
             - Return only keywords separated by spaces
             - Do NOT answer the question
@@ -112,8 +166,13 @@ class QueryRewriteService:
 
             cleaned = self._clean_output(rewritten)
 
-            # fallback if rewrite failed
-            if not cleaned or cleaned.lower() == question.lower():
+            # fallback if rewrite failed or it became a generic/unhelpful query
+            if (
+                not cleaned
+                or cleaned.lower() == question.lower()
+                or "any document" in cleaned.lower()
+                or cleaned.lower() in ("the document", "this document", "document")
+            ):
                 logger.debug("QueryRewrite: fallback to original")
                 return question
 

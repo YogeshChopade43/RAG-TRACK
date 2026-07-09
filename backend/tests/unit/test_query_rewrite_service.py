@@ -65,3 +65,28 @@ class TestQueryRewriteService:
         service.llm.chat.side_effect = Exception("API error")
         result = service.rewrite("What does it say?")
         assert result is not None
+
+    def test_overview_question_detected(self, service):
+        """Document-overview questions should be detected and NOT rewritten."""
+        overview_qs = [
+            "What is the doc about ?",
+            "What is this document about?",
+            "what's this file about",
+            "Summarize this document",
+            "Give me an overview of this pdf",
+        ]
+        for q in overview_qs:
+            assert service.is_overview_question(q) is True
+            # overview questions must skip the LLM rewrite
+            assert service.should_rewrite(q) is False
+
+    def test_specific_question_not_overview(self, service):
+        """Specific topical questions should still be rewritten."""
+        specific_qs = [
+            "What does the document say about machine learning?",
+            "Tell me about the project",
+            "What is AI?",
+        ]
+        for q in specific_qs:
+            assert service.is_overview_question(q) is False
+

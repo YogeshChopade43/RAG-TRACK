@@ -17,7 +17,7 @@ from app.core.logging import setup_logging
 from app.core.ratelimit import limiter, rate_limit_exceeded_handler
 from app.core.auth import get_api_key
 from slowapi.errors import RateLimitExceeded
-from app.api import ingest, retrieve
+from app.api import ingest, retrieve, auth
 
 # Setup logging first
 setup_logging()
@@ -82,6 +82,7 @@ async def log_requests(request: Request, call_next):
 # Include routers
 app.include_router(ingest.router, prefix="/ingest", tags=["Ingestion"])
 app.include_router(retrieve.router, prefix="/query", tags=["Query"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 
 @app.get("/")

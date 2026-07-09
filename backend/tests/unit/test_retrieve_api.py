@@ -4,6 +4,8 @@ Unit tests for Retrieve API endpoints.
 import pytest
 from unittest.mock import Mock, patch
 
+from app.api.retrieve import select_overview_chunks
+
 
 class TestRetrieveAPI:
     """Tests for /query endpoints."""
@@ -207,3 +209,39 @@ class TestRetrieveAPI:
 
             response = client.get("/query/trace/nonexistent")
             assert response.status_code == 404
+
+
+class TestSelectOverviewChunks:
+    """Tests for the document-wide spread selection used by overview queries."""
+
+    def _make_chunks(self, n):
+        return [
+            {
+                "chunk_id": f"doc_chunk_{i}",
+                "chunk_text": f"chunk {i}",
+                "score": 1.0 - i * 0.01,
+                "page_number": (i // 3) + 1,
+            }
+            for i in range(n)
+        ]
+
+    def test_includes_first_chunk(self):
+        chunks = self._make_chunks(12)
+        selected = select_overview_chunks(chunks, 5)
+        ids = [c["chunk_id"] for c in selected]
+        assert ids[0] == "doc_chunk_0"
+
+    def test_spreads_across_document(self):
+        chunks = self._make_chunks(12)
+        selected = select_overview_chunks(chunks, 5)
+        # Selected chunk indices should be spread (not all bunched at the start)
+        indices = sorted(int(c["chunk_id"].split("_")[-1]) for c in selected)
+        assert max(indices) >= 8
+
+    def test_returns_all_when_fewer_than_top_k(self):
+        chunks = self._make_chunks(3)
+        selected = select_overview_chunks(chunks, 5)
+        assert len(selected) == 3
+
+    def test_empty_input(self):
+        assert select_overview_chunks([], 5) == []
