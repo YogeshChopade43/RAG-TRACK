@@ -175,12 +175,90 @@
   opacity: 0.8;
 }
 
-/* App Header with Logout */
+/* App Header */
 .app-header {
   position: fixed;
   top: var(--space-md);
   right: var(--space-md);
   z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.llm-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.llm-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+}
+
+.llm-status-dot.ready {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+}
+
+.llm-config-card {
+  margin-top: var(--space-xl);
+}
+
+.llm-config-header {
+  margin-bottom: var(--space-lg);
+}
+
+.llm-config-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+.llm-config-subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.llm-config-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: flex-end;
+}
+
+.llm-config-form .llm-input-large {
+  flex: 1 1 240px;
+}
+
+.llm-config-form .llm-test-btn-large {
+  flex: 0 0 auto;
+  height: 48px;
+}
+
+.llm-config-success {
+  margin-top: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 10px;
+  color: #4ade80;
+  font-size: 0.95rem;
 }
 
 .logout-button {
@@ -199,8 +277,8 @@
 }
 
 .main-content {
-  padding: var(--space-3xl) var(--space-lg);
-  padding-bottom: var(--space-3xl);
+  padding: var(--space-xl) var(--space-md);
+  padding-bottom: var(--space-xl);
   position: relative;
   z-index: 1;
 }
@@ -286,9 +364,10 @@
 .chat-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--space-md);
   max-width: 900px;
   margin: 0 auto;
+  height: calc(100vh - 160px);
 }
 
 .active-document {
@@ -343,6 +422,8 @@
 
 .chat-wrapper-outer {
   width: 100%;
+  flex: 1;
+  display: flex;
 }
 
 /* Error Messages */

@@ -50,9 +50,9 @@ class GenerationService:
 
         return "\n\n".join(cleaned_paragraphs)
 
-    def generate(self, question: str, retrieved_chunks: list, is_overview: bool = False):
+    def generate(self, question: str, retrieved_chunks: list, is_overview: bool = False, api_key: str = None):
         system_prompt, user_prompt = self._build_prompts(
             question, retrieved_chunks, is_overview=is_overview
         )
-        raw_answer = self.llm.chat(system_prompt, user_prompt)
+        raw_answer = self.llm.chat(system_prompt, user_prompt, api_key=api_key)
         return self._normalize_answer(raw_answer)

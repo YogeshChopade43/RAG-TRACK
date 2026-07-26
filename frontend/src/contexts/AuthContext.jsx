@@ -145,6 +145,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     clearTokens();
+    sessionStorage.removeItem("llm_api_key");
   }, [accessToken, clearTokens]);
 
   const refreshTokenFn = useCallback(async () => {

@@ -73,6 +73,7 @@ class LLMService:
         self,
         system_prompt: str,
         user_prompt: str,
+        api_key: Optional[str] = None,
     ) -> str:
         """
         Send a chat request to the LLM.
@@ -94,7 +95,15 @@ class LLMService:
                 prompt_length=len(user_prompt),
             )
 
-            response: Response = self.client.responses.create(
+            client = self.client
+            if api_key:
+                client = OpenAI(
+                    api_key=api_key,
+                    base_url=settings.openrouter_base_url or os.getenv("OPENROUTER_BASE_URL"),
+                    timeout=settings.llm_timeout_seconds,
+                )
+
+            response: Response = client.responses.create(
                 model=self.model,
                 input=[
                     {"role": "system", "text": system_prompt},

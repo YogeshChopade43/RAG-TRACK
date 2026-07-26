@@ -13,6 +13,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
+import httpx
+
 from app.core.auth_service import (
     authenticate_user,
     change_password,
@@ -283,6 +285,59 @@ async def read_users_me(
         "full_name": current_user.full_name,
         "is_active": current_user.is_active,
     }
+
+
+class TestApiKeyRequest(BaseModel):
+    """Request model for testing OpenRouter API key."""
+    api_key: str = Field(..., min_length=10, max_length=200)
+
+
+class TestApiKeyResponse(BaseModel):
+    """Response model for API key test."""
+    valid: bool
+    message: str
+    model: Optional[str] = None
+
+
+@router.post("/test-api-key", response_model=TestApiKeyResponse)
+async def test_openrouter_api_key(request: TestApiKeyRequest):
+    """Test if an OpenRouter API key is valid."""
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {request.api_key}"},
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get("data", [])
+                model_names = [m.get("id", "") for m in models[:5]]
+                return TestApiKeyResponse(
+                    valid=True,
+                    message="API key is valid",
+                    model=model_names[0] if model_names else None,
+                )
+            elif response.status_code == 401:
+                return TestApiKeyResponse(
+                    valid=False,
+                    message="Invalid API key",
+                )
+            else:
+                return TestApiKeyResponse(
+                    valid=False,
+                    message=f"OpenRouter returned status {response.status_code}",
+                )
+    except httpx.TimeoutException:
+        return TestApiKeyResponse(
+            valid=False,
+            message="Request to OpenRouter timed out",
+        )
+    except Exception as e:
+        return TestApiKeyResponse(
+            valid=False,
+            message=f"Error connecting to OpenRouter: {str(e)}",
+        )
 
 
 @router.post("/change-password")

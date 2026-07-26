@@ -287,6 +287,9 @@ async def query_documents(
     trace_service = TraceService()
     trace_id = trace_service.start_trace(query_request.question)
 
+    # Per-user OpenRouter API key (session-only, not stored in DB)
+    user_api_key = request.headers.get("X-User-OpenRouter-Key", "").strip() or None
+
     try:
         # Step 1: Decompose query (fallback to original question on failure)
         trace_service.start_timer("decomposition")
@@ -426,6 +429,7 @@ async def query_documents(
                 query_request.question,
                 retrieved_chunks,
                 is_overview=is_overview,
+                api_key=user_api_key,
             )
             trace_service.set_response(answer)
         except Exception as e:

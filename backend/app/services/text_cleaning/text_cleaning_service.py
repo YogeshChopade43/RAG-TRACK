@@ -35,6 +35,7 @@ class TextCleaningService:
             text = self._remove_page_footer(text)
             text = self._remove_unicode_noise(text)
             text = self._remove_dotted_lines(text)
+            text = self._remove_image_references(text)
             text = self._fix_line_breaks(text)
             text = self._normalize_bullets(text)
             text = self._normalize_hyphenation(text)
@@ -164,6 +165,17 @@ class TextCleaningService:
 
         # remove leading/trailing spaces
         return text.strip()
+
+    def _remove_image_references(self, text: str) -> str:
+        """
+        Remove image filenames and references that appear in PDF text.
+        These often appear as 'image.png', 'Figure 1:', etc.
+        """
+        # remove common image filename patterns
+        text = re.sub(r'\b(?:image|img|figure|fig|picture|pic|photo|diagram|chart|graph)\s*\d*\s*[:.]?\s*[^\s]+\b', '', text, flags=re.IGNORECASE)
+        # remove lines that are just image filenames
+        text = re.sub(r'^[^\s]+\.(png|jpg|jpeg|gif|bmp|svg|webp|tiff|tif)$', '', text, flags=re.IGNORECASE | re.MULTILINE)
+        return text
 
     def _normalize_punctuation(self, text: str) -> str:
         """

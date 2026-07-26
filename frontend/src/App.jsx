@@ -8,6 +8,7 @@ import "./App.css";
 
 function App() {
   const { getAuthHeaders, logout } = useAuth();
+  const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
   const [file, setFile] = useState(null);
   const [documentId, setDocumentId] = useState(null);
   const [question, setQuestion] = useState("");
@@ -15,6 +16,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [llmApiKey, setLlmApiKey] = useState(() => sessionStorage.getItem("llm_api_key") || "");
+  const [apiKeyTest, setApiKeyTest] = useState({ testing: false, valid: false, message: "" });
+  const apiKeyReady = !!llmApiKey && apiKeyTest.valid;
 
   const uploadSectionRef = useRef(null);
   const { scrollY } = useScroll();
@@ -24,6 +28,21 @@ function App() {
   const scrollToUpload = useCallback(() => {
     uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  const testLlmApiKey = useCallback(async () => {
+    setApiKeyTest({ testing: true, valid: false, message: "" });
+    try {
+      const res = await fetch(`${API_BASE}/auth/test-api-key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ api_key: llmApiKey }),
+      });
+      const data = await res.json();
+      setApiKeyTest({ testing: false, valid: data.valid, message: data.message });
+    } catch (err) {
+      setApiKeyTest({ testing: false, valid: false, message: "Test failed: " + err.message });
+    }
+  }, [llmApiKey, API_BASE, getAuthHeaders]);
 
   const handleFileSelect = useCallback(async (selectedFile) => {
     if (!selectedFile) return;
@@ -38,10 +57,13 @@ function App() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const uploadRes = await fetch("http://127.0.0.1:8000/ingest/", {
+      const uploadRes = await fetch(`${API_BASE}/ingest/`, {
         method: "POST",
         body: formData,
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          ...(llmApiKey ? { "X-User-OpenRouter-Key": llmApiKey } : {}),
+        },
       });
 
       const uploadData = await uploadRes.json();
@@ -84,11 +106,12 @@ function App() {
     setMessages((prev) => [...prev, { role: "user", content: userQuestion }]);
 
     try {
-      const queryRes = await fetch("http://127.0.0.1:8000/query", {
+      const queryRes = await fetch(`${API_BASE}/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
+          ...(llmApiKey ? { "X-User-OpenRouter-Key": llmApiKey } : {}),
         },
         body: JSON.stringify({
           document_id: documentId,
@@ -125,6 +148,23 @@ const answer = queryData.answer || "";
     setError(null);
   }, []);
 
+  useEffect(() => {
+    if (llmApiKey) {
+      sessionStorage.setItem("llm_api_key", llmApiKey);
+    } else {
+      sessionStorage.removeItem("llm_api_key");
+    }
+  }, [llmApiKey]);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const key = sessionStorage.getItem("llm_api_key") || "";
+      setLlmApiKey(key);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   // Page title update
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -140,16 +180,75 @@ const answer = queryData.answer || "";
       {/* Animated Gradient Background */}
       <div className="mesh-gradient"></div>
 
-      {/* Header with Logout */}
+      {/* Header */}
       <header className="app-header">
+        <div className="llm-status-indicator">
+          <span className={`llm-status-dot ${apiKeyReady ? "ready" : "missing"}`}></span>
+          <span className="llm-status-text">
+            {apiKeyReady ? "LLM Ready" : "LLM Not Configured"}
+          </span>
+        </div>
         <button className="logout-button" onClick={logout}>
           Sign Out
         </button>
       </header>
 
+      {/* API Key Setup Card */}
+      {!apiKeyReady && (
+        <div className="main-content container" id="llm-config">
+          <Motion.div
+            className="card llm-config-card"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="llm-config-header">
+              <div>
+                <h2 className="llm-config-title">Configure LLM Provider</h2>
+                <p className="llm-config-subtitle">
+                  Enter your OpenRouter API key to enable the RAG chatbot. Your key is stored only in this browser session and is forgotten when you log out.
+                </p>
+              </div>
+            </div>
+            <div className="llm-config-form">
+              <input
+                type="password"
+                value={llmApiKey}
+                onChange={(e) => {
+                  setLlmApiKey(e.target.value);
+                  if (apiKeyTest.valid) {
+                    setApiKeyTest({ testing: false, valid: false, message: "" });
+                  }
+                }}
+                placeholder="sk-or-..."
+                className="llm-input-large"
+                disabled={apiKeyTest.testing}
+              />
+              <button
+                onClick={testLlmApiKey}
+                disabled={apiKeyTest.testing || !llmApiKey}
+                className="btn btn-primary llm-test-btn-large"
+              >
+                {apiKeyTest.testing ? "Testing..." : "Test & Continue"}
+              </button>
+              {apiKeyTest.message && !apiKeyTest.valid && (
+                <span className={`llm-test-status ${apiKeyTest.valid ? "valid" : "invalid"}`}>
+                  {apiKeyTest.message}
+                </span>
+              )}
+            </div>
+            {apiKeyTest.valid && (
+              <div className="llm-config-success">
+                ✓ API key verified. You can now use the chatbot.
+              </div>
+            )}
+          </Motion.div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <Motion.section style={{ opacity: heroOpacity, scale: heroScale }}>
-        <HeroSection onUploadClick={scrollToUpload} />
+        <HeroSection onUploadClick={scrollToUpload} disabled={!apiKeyReady} />
       </Motion.section>
 
       {/* Main Content */}
@@ -169,6 +268,7 @@ const answer = queryData.answer || "";
                 onFileSelect={handleFileSelect}
                 isUploading={uploading}
                 error={error}
+                disabled={!apiKeyReady}
               />
 
               {file && !uploading && (
@@ -228,14 +328,14 @@ const answer = queryData.answer || "";
               )}
 
               <div className="chat-wrapper-outer">
-                <ChatInterface
-                  inputValue={question}
-                  onInputChange={setQuestion}
-                  onAsk={askQuestion}
-                  isLoading={loading}
-                  disabled={!documentId}
-                  messages={messages}
-                />
+              <ChatInterface
+                inputValue={question}
+                onInputChange={setQuestion}
+                onAsk={askQuestion}
+                isLoading={loading}
+                disabled={!documentId || !apiKeyReady}
+                messages={messages}
+              />
               </div>
 
               <AnimatePresence>

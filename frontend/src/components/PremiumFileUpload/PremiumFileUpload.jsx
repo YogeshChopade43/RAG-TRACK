@@ -2,7 +2,7 @@
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import "./PremiumFileUpload.css";
 
-const PremiumFileUpload = ({ onFileSelect, isUploading, error }) => {
+const PremiumFileUpload = ({ onFileSelect, isUploading, error, disabled }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [_dragCounter, setDragCounter] = useState(0);
   const fileInputRef = useRef(null);
@@ -58,17 +58,17 @@ const PremiumFileUpload = ({ onFileSelect, isUploading, error }) => {
   return (
     <div className="upload-wrapper">
       <Motion.div
-        className={`upload-dropzone ${isDragging ? "drag-active" : ""} ${error ? "has-error" : ""}`}
+        className={`upload-dropzone ${isDragging ? "drag-active" : ""} ${error ? "has-error" : ""} ${disabled ? "disabled" : ""}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onClick={handleBrowseClick}
+        onClick={disabled ? undefined : handleBrowseClick}
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
+        whileHover={{ scale: disabled ? 1 : 1.01 }}
+        whileTap={{ scale: disabled ? 1 : 0.99 }}
       >
         <input
           type="file"
@@ -76,7 +76,7 @@ const PremiumFileUpload = ({ onFileSelect, isUploading, error }) => {
           onChange={handleFileInput}
           accept=".pdf,.txt,.doc,.docx,.md,.rtf"
           style={{ display: "none" }}
-          disabled={isUploading}
+          disabled={isUploading || disabled}
           aria-label="Upload document file"
         />
 
