@@ -6,20 +6,21 @@ Provides configurable rate limiting per endpoint using slowapi.
 import logging
 from typing import Optional
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def get_client_ip(request: Request) -> str:
+def get_client_ip(request: Request) -> Optional[str]:
     """Extract client IP from request for rate limiting."""
-    # Check for forwarded header (reverse proxy)
+    if RateLimiterConfig.is_exempt(request):
+        return None
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -46,6 +47,12 @@ class RateLimiterConfig:
     def get_limit(cls) -> str:
         """Get the default rate limit string."""
         return f"{settings.rate_limit_per_minute}/minute"
+
+    @classmethod
+    def is_exempt(cls, request: Request) -> bool:
+        """Check if a request path is exempt from rate limiting."""
+        exempt_paths = {"/health", "/health/ready", "/docs", "/redoc", "/openapi.json"}
+        return request.url.path in exempt_paths
 
 
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:

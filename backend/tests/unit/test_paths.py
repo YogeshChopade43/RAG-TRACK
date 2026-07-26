@@ -1,16 +1,16 @@
 """
 Unit tests for paths configuration.
 """
-import pytest
 import os
+
 from app.core.paths import (
     BASE_DIR,
+    CHUNKS_DIR,
     DATA_DIR,
-    RAW_DIR,
     METADATA_DIR,
     PARSED_DIR,
+    RAW_DIR,
     TRACE_DIR,
-    CHUNKS_DIR,
 )
 
 

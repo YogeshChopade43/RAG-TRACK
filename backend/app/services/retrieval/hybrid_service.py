@@ -8,12 +8,12 @@ production-grade reranking as a third layer.
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 
 from app.core.config import settings
+from app.services.reranking import RerankingService
 from app.services.retrieval.bm25.service import BM25Service
 from app.services.retrieval.retrieval_service import RetrievalService
-from app.services.reranking import RerankingService
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class HybridRetrievalService:
             f"HybridRetrievalService initialized (reranker={'enabled' if self.reranker else 'disabled'})"
         )
 
-    def _normalize_minmax(self, scores: List[float]) -> List[float]:
+    def _normalize_minmax(self, scores: list[float]) -> list[float]:
         """
         Min-max normalization to [0, 1].
 
@@ -84,8 +84,8 @@ class HybridRetrievalService:
         query: str,
         top_k: int = 3,
         use_reranking: Optional[bool] = None,
-        weights: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        weights: Optional[dict[str, float]] = None,
+    ) -> dict[str, Any]:
         """
         Perform hybrid search combining BM25 and vector retrieval.
 
@@ -119,8 +119,8 @@ class HybridRetrievalService:
         # ------------------------------------------------------------------
         # Step 1: Parallel retrieval (vector + BM25)
         # ------------------------------------------------------------------
-        vector_results: List[Dict[str, Any]] = []
-        bm25_results: List[Dict[str, Any]] = []
+        vector_results: list[dict[str, Any]] = []
+        bm25_results: list[dict[str, Any]] = []
 
         # Fetch enough candidates for fusion (use larger fetch_k to ensure good fusion)
         fetch_k = max(top_k, 10)
@@ -175,7 +175,42 @@ class HybridRetrievalService:
             }
 
         # ------------------------------------------------------------------
-        # Step 2: Normalize scores per modality
+        # Step 2: Fallback when one modality is empty
+        # ------------------------------------------------------------------
+        if not vector_results:
+            logger.info(f"[{document_id}] BM25-only fallback (no vector results)")
+            return {
+                "matches": bm25_results[:top_k],
+                "bm25_results": bm25_results[:top_k],
+                "reranking_applied": False,
+                "fusion_details": {
+                    "vector_count": 0,
+                    "bm25_count": len(bm25_results),
+                    "fused_count": len(bm25_results),
+                    "fusion_weights": {"bm25": w_bm25, "vector": w_vector},
+                    "fallback": "bm25_only",
+                },
+                "total_candidates": len(bm25_results),
+            }
+
+        if not bm25_results:
+            logger.info(f"[{document_id}] Vector-only fallback (no BM25 results)")
+            return {
+                "matches": vector_results[:top_k],
+                "bm25_results": [],
+                "reranking_applied": False,
+                "fusion_details": {
+                    "vector_count": len(vector_results),
+                    "bm25_count": 0,
+                    "fused_count": len(vector_results),
+                    "fusion_weights": {"bm25": w_bm25, "vector": w_vector},
+                    "fallback": "vector_only",
+                },
+                "total_candidates": len(vector_results),
+            }
+
+        # ------------------------------------------------------------------
+        # Step 3: Normalize scores per modality
         # ------------------------------------------------------------------
         vector_scores = [r["score"] for r in vector_results]
         bm25_scores = [r["score"] for r in bm25_results]
@@ -193,7 +228,7 @@ class HybridRetrievalService:
             r["_bm25_norm"] = norm_score
 
         # ------------------------------------------------------------------
-        # Step 3: Fuse scores by chunk_id
+        # Step 4: Fuse scores by chunk_id
         # ------------------------------------------------------------------
         # Build chunk_id -> result mapping for both modalities
         vector_by_id = {r["chunk_id"]: r for r in vector_results}
@@ -208,8 +243,8 @@ class HybridRetrievalService:
             b_res = bm25_by_id.get(chunk_id)
 
             # Get normalized scores (default to 0.0 if missing from either modality)
-            v_norm = v_res["_vector_norm"] if v_res else 0.0
-            b_norm = b_res["_bm25_norm"] if b_res else 0.0
+            v_norm = v_res.get("_vector_norm", 0.0) if v_res else 0.0
+            b_norm = b_res.get("_bm25_norm", 0.0) if b_res else 0.0
 
             # Weighted combination
             fused_score = w_vector * v_norm + w_bm25 * b_norm

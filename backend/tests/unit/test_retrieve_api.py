@@ -1,8 +1,9 @@
 """
 Unit tests for Retrieve API endpoints.
 """
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from app.api.retrieve import select_overview_chunks
 
@@ -75,9 +76,12 @@ class TestRetrieveAPI:
     def test_query_endpoint_success(self, client, valid_request_body, mock_services):
         """Test successful query returns answer with sources."""
         with patch('app.api.retrieve.TraceService') as mock_trace_service_class:
-            mock_trace = Mock()
             mock_trace_service = Mock()
             mock_trace_service.start_trace.return_value = "trace-123"
+            mock_trace = Mock()
+            mock_trace.trace_id = "trace-123"
+            mock_trace.model_dump.return_value = {"trace_id": "trace-123"}
+            mock_trace_service.get_trace.return_value = mock_trace
             mock_trace_service_class.return_value = mock_trace_service
 
             response = client.post("/query", json=valid_request_body)
@@ -136,6 +140,10 @@ class TestRetrieveAPI:
             with patch('app.api.retrieve.TraceService') as mock_trace_class:
                 mock_trace_service = Mock()
                 mock_trace_service.start_trace.return_value = "trace-123"
+                mock_trace = Mock()
+                mock_trace.trace_id = "trace-123"
+                mock_trace.model_dump.return_value = {"trace_id": "trace-123"}
+                mock_trace_service.get_trace.return_value = mock_trace
                 mock_trace_class.return_value = mock_trace_service
 
                 response = client.post("/query", json=valid_request_body)
@@ -180,6 +188,10 @@ class TestRetrieveAPI:
             with patch('app.api.retrieve.TraceService') as mock_trace_class:
                 mock_trace_service = Mock()
                 mock_trace_service.start_trace.return_value = "trace-123"
+                mock_trace = Mock()
+                mock_trace.trace_id = "trace-123"
+                mock_trace.model_dump.return_value = {"trace_id": "trace-123"}
+                mock_trace_service.get_trace.return_value = mock_trace
                 mock_trace_class.return_value = mock_trace_service
 
                 response = client.post("/query", json=valid_request_body)

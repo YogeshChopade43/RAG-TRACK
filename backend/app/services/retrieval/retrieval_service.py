@@ -7,13 +7,12 @@ reranking to refine and reorder results.
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from app.core.config import settings
+from app.services.embedding.shared_model import get_shared_embedding_model
 from app.services.reranking import RerankingService
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ class RetrievalService:
     def __init__(self):
         """Initialize retrieval service."""
         logger.debug("Initializing RetrievalService")
-        self.model = SentenceTransformer(settings.embedding_model)
+        self.model = get_shared_embedding_model()
         self.reranker = RerankingService() if settings.use_reranking else None
 
     def _load_index(self, document_id: str):
@@ -56,7 +55,7 @@ class RetrievalService:
         index = faiss.read_index(str(index_path))
 
         # Load metadata
-        with open(metadata_path, "r", encoding="utf-8") as f:
+        with open(metadata_path, encoding="utf-8") as f:
             metadata = json.load(f)
 
         logger.info(
@@ -69,7 +68,7 @@ class RetrievalService:
         document_id: str,
         query: str,
         top_k: int = 3,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Perform pure vector similarity search without reranking.
 
@@ -93,6 +92,9 @@ class RetrievalService:
         query_embedding = self.model.encode(query)
         query_embedding = query_embedding.astype("float32")
         query_embedding = query_embedding.reshape(1, -1)
+
+        if hasattr(index, "hnsw"):
+            index.hnsw.efSearch = settings.faiss_hnsw_ef_search
 
         # Search
         distances, indices = index.search(query_embedding, top_k)
@@ -128,7 +130,7 @@ class RetrievalService:
         query: str,
         top_k: int = 3,
         use_reranking: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Performs semantic search inside ONE document using FAISS.
 
@@ -172,6 +174,9 @@ class RetrievalService:
             # Fetch more candidates for reranking to have better selection
             fetch_k = min(settings.rerank_top_k, index.ntotal) if index.ntotal > 0 else top_k
             fetch_k = max(fetch_k, top_k)
+
+        if hasattr(index, "hnsw"):
+            index.hnsw.efSearch = settings.faiss_hnsw_ef_search
 
         # Search
         distances, indices = index.search(query_embedding, fetch_k)

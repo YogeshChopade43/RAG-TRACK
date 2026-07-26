@@ -13,18 +13,15 @@ criteria, assigns normalized scores, and produces a final ranked list.
 """
 
 import logging
-import re
-from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
-from pathlib import Path
-import json
 import math
+import re
+from dataclasses import asdict, dataclass
+from typing import Any, Optional
 
-import numpy as np
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.config import settings
+from app.services.embedding.shared_model import get_shared_rerank_model
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +41,9 @@ class RankedItem:
     # Metadata
     file_name: Optional[str] = None
     page_number: Optional[int] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         d = asdict(self)
         # Include 'score' as an alias for 'final_score' for backward compatibility
@@ -74,10 +71,8 @@ class RerankingService:
         """
         Initialize reranking service with embedding model.
         """
-        self.embedding_model = SentenceTransformer(settings.embedding_model)
+        self.embedding_model = get_shared_rerank_model()
         self.use_llm_scoring = getattr(settings, 'use_llm_reranking', False)
-        # Check if reranking is enabled - if settings doesn't have the attribute, default to False
-        # This prevents reranking in test environments where settings is mocked incompletely
         self.use_reranking = getattr(settings, 'use_reranking', False)
         logger.info(
             f"Initialized RerankingService with model={settings.embedding_model}, "
@@ -88,8 +83,8 @@ class RerankingService:
     # Semantic Similarity Reranking
     # ------------------------------------------------------------------
     def _compute_semantic_scores(
-        self, query: str, chunks: List[Dict[str, Any]]
-    ) -> List[float]:
+        self, query: str, chunks: list[dict[str, Any]]
+    ) -> list[float]:
         """
         Compute semantic similarity scores between query and each chunk.
 
@@ -126,8 +121,8 @@ class RerankingService:
     # Keyword Overlap Scoring
     # ------------------------------------------------------------------
     def _compute_keyword_scores(
-        self, query: str, chunks: List[Dict[str, Any]]
-    ) -> List[float]:
+        self, query: str, chunks: list[dict[str, Any]]
+    ) -> list[float]:
         """
         Compute keyword overlap scores between query and chunks.
 
@@ -148,7 +143,7 @@ class RerankingService:
         stopwords = {
             'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
             'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-            'to', 'was', 'will', 'with', 'the', 'this', 'but', 'they', 'have',
+            'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have',
             'had', 'what', 'said', 'each', 'which', 'she', 'do', 'how', 'their',
             'if', 'up', 'out', 'many', 'then', 'them', 'these', 'so', 'some', 'her',
             'would', 'make', 'like', 'into', 'him', 'time', 'two', 'more', 'go',
@@ -169,7 +164,7 @@ class RerankingService:
             'still', 'learn', 'should', 'world', 'high', 'every', 'between',
             'both', 'country', 'under', 'last', 'never', 'dear', 'word', 'while',
             'below', 'above', 'along', 'among', 'whether', 'upon', 'either',
-            'neither', 'across', 'toward', 'towards', 'onto', 'into', 'within',
+            'neither', 'across', 'toward', 'towards', 'onto', 'within',
             'without', 'behind', 'beyond', 'plus', 'minus', 'except', 'until',
             'since', 'despite', 'unlike', 'including', 'regarding', 'concerning',
             'considering', 'regardless', 'notwithstanding', 'according',
@@ -178,12 +173,11 @@ class RerankingService:
             'likewise', 'similarly', 'namely', 'specifically', 'particularly',
             'especially', 'indeed', 'actually', 'really', 'quite', 'rather',
             'somewhat', 'slightly', 'barely', 'hardly', 'scarcely', 'almost',
-            'nearly', 'approximately', 'roughly', 'about', 'around', 'circa',
-            'versus', 'via', 'per', 'pro', 'con', 'anti', 'non', 'un', 'in',
-            'im', 'ir', 'il', 'dis', 'mis', 'over', 're', 'pre', 'post', 'sub',
+            'nearly', 'approximately', 'roughly', 'about', 'circa',
+            'versus', 'via', 'per', 'pro', 'con', 'anti', 'non', 'un', 'im', 'ir', 'il', 'dis', 'mis', 're', 'pre', 'post', 'sub',
             'super', 'trans', 'inter', 'intra', 'extra', 'ultra', 'mega', 'micro',
-            'macro', 'multi', 'semi', 'quasi', 'pseudo', 'neo', 'anti', 'counter',
-            'pro', 'contra', 'vice', 'para', 'ortho', 'meta', 'epi', 'hypo',
+            'macro', 'multi', 'semi', 'quasi', 'pseudo', 'neo', 'counter',
+            'contra', 'vice', 'para', 'ortho', 'meta', 'epi', 'hypo',
             'hyper', 'endo', 'exo', 'ecto', 'meso', 'thermo', 'hydro', 'geo',
             'bio', 'psycho', 'socio', 'chrono', 'auto', 'hetero', 'homo', 'mono',
             'di', 'tri', 'tetra', 'penta', 'hexa', 'hepta', 'octa', 'nona', 'deca',
@@ -234,8 +228,8 @@ class RerankingService:
     # Original Score Calibration
     # ------------------------------------------------------------------
     def _calibrate_original_scores(
-        self, chunks: List[Dict[str, Any]]
-    ) -> List[float]:
+        self, chunks: list[dict[str, Any]]
+    ) -> list[float]:
         """
         Calibrate and normalize original FAISS similarity scores.
 
@@ -272,8 +266,8 @@ class RerankingService:
     # LLM-Based Relevance Scoring
     # ------------------------------------------------------------------
     def _compute_llm_relevance_scores(
-        self, query: str, chunks: List[Dict[str, Any]]
-    ) -> List[float]:
+        self, query: str, chunks: list[dict[str, Any]]
+    ) -> list[float]:
         """
         Use LLM to assess relevance of each chunk to the query.
 
@@ -343,9 +337,9 @@ class RerankingService:
     def _compute_ensemble_scores(
         self,
         query: str,
-        chunks: List[Dict[str, Any]],
-        weights: Optional[Dict[str, float]] = None,
-    ) -> List[RankedItem]:
+        chunks: list[dict[str, Any]],
+        weights: Optional[dict[str, float]] = None,
+    ) -> list[RankedItem]:
         """
         Compute final ensemble scores by combining multiple ranking signals.
 
@@ -438,11 +432,11 @@ class RerankingService:
     def rerank(
         self,
         query: str,
-        chunks: List[Dict[str, Any]],
+        chunks: list[dict[str, Any]],
         top_k: Optional[int] = None,
-        weights: Optional[Dict[str, float]] = None,
+        weights: Optional[dict[str, float]] = None,
         return_all: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Main reranking method.
 
@@ -545,9 +539,9 @@ class RerankingService:
     def rerank_simple(
         self,
         query: str,
-        chunks: List[Dict[str, Any]],
+        chunks: list[dict[str, Any]],
         top_k: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Simplified reranking interface returning just the top-k items.
 

@@ -1,5 +1,4 @@
 import re
-from typing import List, Dict
 
 
 class TextCleaningService:
@@ -18,13 +17,13 @@ class TextCleaningService:
     Output:
         same structure but cleaned text
     """
-    
-    def clean_pages(self, pages: List[Dict]) -> List[Dict]:
+
+    def clean_pages(self, pages: list[dict]) -> list[dict]:
 
         if not pages:
             return []
 
-        cleaned_pages: List[Dict] = []
+        cleaned_pages: list[dict] = []
 
         for page in pages:
             text = page.get("text", "")
@@ -165,7 +164,7 @@ class TextCleaningService:
 
         # remove leading/trailing spaces
         return text.strip()
-    
+
     def _normalize_punctuation(self, text: str) -> str:
         """
         Fix repeated punctuation artifacts left from PDF extraction.

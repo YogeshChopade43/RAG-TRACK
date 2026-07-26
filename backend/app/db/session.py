@@ -2,7 +2,7 @@
 Database session management for RAG-TRACK.
 """
 
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -29,14 +29,14 @@ SessionLocal = None
 def get_db() -> Generator:
     """
     Get database session.
-    
+
     Yields:
         Database session
     """
     global SessionLocal
     if SessionLocal is None:
         SessionLocal = get_session_local()
-    
+
     db = SessionLocal()
     try:
         yield db
@@ -47,6 +47,6 @@ def get_db() -> Generator:
 def init_db():
     """Initialize database tables."""
     from app.db.base import Base
-    
+
     engine = get_engine()
     Base.metadata.create_all(bind=engine)

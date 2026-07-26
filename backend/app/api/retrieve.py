@@ -4,29 +4,31 @@ Query API endpoints for RAG-TRACK.
 Provides semantic search and question answering over uploaded documents.
 """
 
+import asyncio
 import logging
 import re
+import uuid
 from functools import lru_cache
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.core.auth import get_api_key
 from app.core.config import settings
 from app.core.ratelimit import default_limit
-from app.core.auth import get_api_key
-from app.services.retrieval.hybrid_service import HybridRetrievalService
-from app.services.retrieval.retrieval_service import RetrievalService
 from app.services.generation.generation_service import GenerationService
-from app.services.query.query_rewrite.query_rewrite_service import QueryRewriteService
+from app.services.observability.trace_service import TraceService
+from app.services.observability.trace_storage import TraceStorage
+from app.services.query.multi_query.multi_query_service import MultiQueryService
 from app.services.query.query_decomposition.query_decomposition_service import (
     QueryDecompositionService,
 )
-from app.services.query.multi_query.multi_query_service import MultiQueryService
-from app.services.observability.trace_service import TraceService
-from app.services.observability.trace_storage import TraceStorage
+from app.services.query.query_rewrite.query_rewrite_service import QueryRewriteService
+from app.services.retrieval.hybrid_service import HybridRetrievalService
+from app.services.retrieval.retrieval_service import RetrievalService
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,9 @@ limiter = Limiter(key_func=get_remote_address)
 def require_auth(api_key: str = Depends(get_api_key)) -> str:
     """Dependency to require API authentication."""
     return api_key
+
+
+_retrieval_cache: dict = {}
 
 
 # =============================================================================
@@ -99,7 +104,7 @@ class QueryResponse(BaseModel):
     trace_id: str
     question: str
     answer: str
-    sources: List[dict]
+    sources: list[dict]
 
 
 # =============================================================================
@@ -158,7 +163,7 @@ def get_retriever() -> Union[RetrievalService, HybridRetrievalService]:
         return get_retrieval_service()
 
 
-def select_overview_chunks(chunks: List[dict], top_k: int) -> List[dict]:
+def select_overview_chunks(chunks: list[dict], top_k: int) -> list[dict]:
     """
     Build a representative, document-wide spread of chunks for overview/summary
     questions (instead of only the top-relevance chunks).
@@ -263,6 +268,17 @@ async def query_documents(
         # Pull more candidates so we can build a representative document-wide spread
         top_k = max(base_top_k, settings.top_k_retrieval * 2)
 
+    cache_key = (query_request.document_id, query_request.question.strip().lower(), base_top_k)
+    if cache_key in _retrieval_cache:
+        cached = _retrieval_cache[cache_key]
+        logger.info(f"Cache hit for query on {query_request.document_id}")
+        return QueryResponse(
+            trace_id=str(uuid.uuid4()),
+            question=query_request.question,
+            answer=cached["answer"],
+            sources=cached["sources"],
+        )
+
     logger.info(
         f"Processing query for document: {query_request.document_id} "
         f"(overview={is_overview})"
@@ -272,9 +288,13 @@ async def query_documents(
     trace_id = trace_service.start_trace(query_request.question)
 
     try:
-        # Step 1: Decompose query
+        # Step 1: Decompose query (fallback to original question on failure)
         trace_service.start_timer("decomposition")
-        sub_queries = decomposer.decompose(query_request.question)
+        try:
+            sub_queries = decomposer.decompose(query_request.question)
+        except Exception as e:
+            logger.warning(f"Query decomposition failed, using original question: {e}")
+            sub_queries = [query_request.question]
         trace_service.set_decomposed_queries(sub_queries)
         trace_service.end_timer("decomposition")
 
@@ -287,24 +307,33 @@ async def query_documents(
         for q in sub_queries:
             logger.debug(f"Processing sub-query: {q}")
 
-            # Step 2a: Rewrite
+            # Step 2a: Rewrite (fallback to sub-query on failure)
             trace_service.start_timer("rewrite")
-            rewritten_query = rewriter.rewrite(q)
+            try:
+                rewritten_query = rewriter.rewrite(q)
+            except Exception as e:
+                logger.warning(f"Query rewrite failed for '{q}', using original: {e}")
+                rewritten_query = q
             trace_service.set_rewritten_query(rewritten_query)
             trace_service.end_timer("rewrite")
 
-            # Step 2b: Multi-query expansion
-            expanded_queries = multi_query.generate_queries(
-                rewritten_query, total_sub_queries=len(sub_queries)
-            )
+            # Step 2b: Multi-query expansion (fallback to just rewritten query on failure)
+            try:
+                expanded_queries = multi_query.generate_queries(
+                    rewritten_query, total_sub_queries=len(sub_queries)
+                )
+            except Exception as e:
+                logger.warning(f"Multi-query expansion failed, using single query: {e}")
+                expanded_queries = [rewritten_query]
 
         # Step 2c: Retrieval for each expanded query
         for eq in expanded_queries:
             trace_service.start_timer("retrieval")
-            result = retriever.search(
+            result = await asyncio.to_thread(
+                retriever.search,
                 query_request.document_id,
                 eq,
-                top_k=top_k,
+                top_k,
             )
             matches = result.get("matches", [])
             trace_service.end_timer("retrieval")
@@ -382,9 +411,21 @@ async def query_documents(
         # Step 6: Generate answer
         trace_service.start_timer("generation")
 
+        llm_provider = "ollama" if settings.use_local_llm else "openrouter"
+        trace_service.set_llm_settings(
+            provider=llm_provider,
+            model=settings.llm_model,
+            temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+            timeout_seconds=settings.llm_timeout_seconds,
+        )
+
         try:
-            answer = generator.generate(
-                query_request.question, retrieved_chunks, is_overview=is_overview
+            answer = await asyncio.to_thread(
+                generator.generate,
+                query_request.question,
+                retrieved_chunks,
+                is_overview=is_overview,
             )
             trace_service.set_response(answer)
         except Exception as e:
@@ -407,6 +448,10 @@ async def query_documents(
 
         sources = list(unique_sources.values())
 
+        _retrieval_cache[cache_key] = {"answer": answer, "sources": sources}
+        if len(_retrieval_cache) > 128:
+            _retrieval_cache.pop(next(iter(_retrieval_cache)))
+
         # Save trace
         if settings.trace_enabled:
             TraceStorage.save(trace_service.get_trace())
@@ -425,7 +470,7 @@ async def query_documents(
         trace_service.set_response(str(e))
         if settings.trace_enabled:
             TraceStorage.save(trace_service.get_trace())
-        raise HTTPException(status_code=500, detail="Query processing failed")
+        raise HTTPException(status_code=500, detail="Query processing failed") from None
 
 
 @router.get("/trace/{trace_id}")
@@ -439,4 +484,22 @@ async def get_trace(trace_id: str):
             raise HTTPException(status_code=404, detail="Trace not found")
         return trace.dict()
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Trace not found")
+        raise HTTPException(status_code=404, detail="Trace not found") from None
+
+
+@router.get("/traces")
+async def list_traces(limit: int = 50):
+    """List recent traces."""
+    from app.services.observability.trace_storage import TraceStorage
+
+    traces = TraceStorage.list_traces(limit=limit)
+    return {"traces": traces, "count": len(traces)}
+
+
+@router.post("/traces/cleanup")
+async def cleanup_traces(retention_days: int = 7):
+    """Remove traces older than retention_days."""
+    from app.services.observability.trace_storage import TraceStorage
+
+    removed = TraceStorage.cleanup_old_traces(retention_days=retention_days)
+    return {"removed": removed, "retention_days": retention_days}

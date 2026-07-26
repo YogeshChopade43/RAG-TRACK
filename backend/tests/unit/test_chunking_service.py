@@ -1,8 +1,10 @@
 """
 Unit tests for ChunkingService.
 """
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from app.services.chunking.chunking_service import ChunkingService
 
 
@@ -83,13 +85,13 @@ class TestChunkingService:
         """Test that invalid CHUNK_SIZE raises error."""
         with patch('app.services.chunking.chunking_service.CHUNK_SIZE', 0):
             service = ChunkingService()
-            
+
             parsed_load = {
                 "document_id": "test-123",
                 "file_name": "test.txt",
                 "pages": [{"page_number": 1, "text": "A" * 100}]
             }
-            
+
             with pytest.raises(ValueError, match="CHUNK_SIZE must be positive"):
                 service.chunk(parsed_load)
 
@@ -141,7 +143,7 @@ class TestChunkingService:
     def test_custom_chunk_size(self):
         """Test service with custom chunk size."""
         service = ChunkingService(chunk_size=100, chunk_overlap=25)
-        
+
         parsed_load = {
             "document_id": "test-123",
             "file_name": "test.txt",

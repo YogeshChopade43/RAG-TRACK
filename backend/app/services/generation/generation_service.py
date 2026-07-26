@@ -1,6 +1,6 @@
 import re
-from typing import List
 
+from app.services.generation.prompt_registry import registry
 from app.services.llm import get_llm_service
 
 
@@ -17,49 +17,13 @@ class GenerationService:
         context = self.build_context(retrieved_chunks)
 
         if is_overview:
-            system_prompt = """
-                You are a document QA assistant.
-
-                The user is asking for a high-level overview or summary of the
-                entire document (e.g. "what is this document about?" or
-                "summarize this file").
-
-                You MUST follow these rules:
-                1) First identify what KIND of document this is and, if present,
-                   who or what it is about (e.g. a resume/CV for a person, a
-                   report, an article). State this in the first sentence.
-                2) Then give a balanced 2-4 sentence summary covering the main
-                   topics/sections of the document as a whole.
-                3) Do NOT over-focus on a single project, section, or sentence.
-                4) Treat each distinct project, section, or achievement separately;
-                   do NOT merge different items into one.
-                5) Answer only using the provided context.
-                6) If the answer is not present, say:
-                   "I could not find the answer in the document."
-                7) Do NOT use outside knowledge and do NOT guess.
-                8) Provide only the final answer once.
-            """
+            prompt_name = "overview"
         else:
-            system_prompt = """
-                You are a document QA assistant.
+            prompt_name = "qa"
 
-                You MUST follow these rules:
-                1) Answer only using the provided context
-                2) If the answer is not present, say:
-                "I could not find the answer in the document."
-                3) Do NOT use outside knowledge
-                4) Do NOT guess if the answer is not present in the context.
-                5) Do NOT repeat the question or any part of the prompt.
-                6) Provide only the final answer once.
-            """
-
-        user_prompt = f"""
-                    Context:
-                    {context}
-
-                    Question:
-                    {question}
-                    """
+        template = registry.get(prompt_name)
+        system_prompt = template.system_prompt
+        user_prompt = registry.render(prompt_name, context=context, question=question)
         return system_prompt, user_prompt
 
     def _normalize_answer(self, text: str) -> str:

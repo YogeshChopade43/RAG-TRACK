@@ -1,10 +1,12 @@
 """
 Unit tests for the production-grade reranking service.
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 import numpy as np
-from pathlib import Path
+import pytest
+
+from app.services.embedding.shared_model import get_shared_rerank_model
 
 
 class TestRerankingService:
@@ -29,10 +31,11 @@ class TestRerankingService:
     @pytest.fixture
     def reranker(self, mock_settings):
         """Create a reranking service with mocked model."""
-        with patch('app.services.reranking.reranking_service.SentenceTransformer') as mock_st:
+        with patch('app.services.embedding.shared_model.SentenceTransformer') as mock_st:
             mock_model = Mock()
             mock_model.encode.side_effect = lambda x: np.random.rand(len(x) if isinstance(x, list) else 1, 384).astype('float32')
             mock_st.return_value = mock_model
+            get_shared_rerank_model.cache_clear()
             from app.services.reranking.reranking_service import RerankingService
             return RerankingService()
 
@@ -404,10 +407,11 @@ class TestRerankingServiceDisabled:
     @pytest.fixture
     def reranker_disabled(self, mock_settings_disabled):
         """Create a reranking service with reranking disabled."""
-        with patch('app.services.reranking.reranking_service.SentenceTransformer') as mock_st:
+        with patch('app.services.embedding.shared_model.SentenceTransformer') as mock_st:
             mock_model = Mock()
             mock_model.encode.return_value = np.random.rand(1, 384).astype('float32')
             mock_st.return_value = mock_model
+            get_shared_rerank_model.cache_clear()
             from app.services.reranking.reranking_service import RerankingService
             return RerankingService()
 

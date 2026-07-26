@@ -173,6 +173,36 @@ const TraceViewer = ({ traceId }) => {
                   </div>
                 </Motion.div>
 
+                {traceData.llm_model && (
+                  <Motion.div className="trace-section" variants={containerVariants}>
+                    <h4 className="trace-section-title">LLM Settings</h4>
+                    <div className="llm-settings">
+                      <div className="llm-setting">
+                        <span className="llm-label">Provider</span>
+                        <span className="llm-value">{traceData.llm_provider || "—"}</span>
+                      </div>
+                      <div className="llm-setting">
+                        <span className="llm-label">Model</span>
+                        <span className="llm-value">{traceData.llm_model}</span>
+                      </div>
+                      <div className="llm-setting">
+                        <span className="llm-label">Temperature</span>
+                        <span className="llm-value">{traceData.llm_temperature ?? "—"}</span>
+                      </div>
+                      <div className="llm-setting">
+                        <span className="llm-label">Max Tokens</span>
+                        <span className="llm-value">{traceData.llm_max_tokens ?? "—"}</span>
+                      </div>
+                      <div className="llm-setting">
+                        <span className="llm-label">Timeout</span>
+                        <span className="llm-value">
+                          {traceData.llm_timeout_seconds != null ? `${traceData.llm_timeout_seconds}s` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </Motion.div>
+                )}
+
                 <Motion.div className="trace-section" variants={containerVariants}>
                   <h4 className="trace-section-title">
                     Retrieved Chunks ({traceData.retrieved_chunks?.length || 0})

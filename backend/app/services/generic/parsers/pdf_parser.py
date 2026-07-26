@@ -1,16 +1,17 @@
-from typing import List, Dict
+
 import pdfplumber
+
 from app.services.generic.utils.parser_utils import normalize_text
 
 
-def parse_pdf(file_path: str) -> List[Dict]:
+def parse_pdf(file_path: str) -> list[dict]:
     """
     Safe digital PDF parser.
     Attempts extraction and validates text quality.
     Rejects scanned/image PDFs gracefully.
     """
 
-    pages: List[Dict] = []
+    pages: list[dict] = []
     total_characters = 0
 
     try:

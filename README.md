@@ -470,6 +470,101 @@ Contributions are welcome! Please feel free to submit a Pull Request.
   <li>Open a Pull Request</li>
 </ol>
 
+<h2>▶️ Running the Project</h2>
+
+<h3>Quick Start</h3>
+
+<pre>
+# 1. Clone the repo
+git clone https://github.com/YogeshChopade43/RAG-TRACK.git
+cd RAG-TRACK
+
+# 2. Set up Python environment
+python -m venv venv
+.\venv\Scripts\activate   # Windows
+# source venv/bin/activate  # Linux/Mac
+
+pip install -r requirements.txt
+
+# 3. Configure environment
+cp .env.example .env   # Linux/Mac/Git Bash
+# copy .env.example .env  # PowerShell/CMD
+
+# 4. Start backend (default port: 8000)
+cd backend
+python run.py
+# API docs: http://localhost:8000/docs
+
+# 5. In a new terminal, start frontend (default port: 5173)
+cd frontend
+npm install
+npm run dev
+# UI: http://localhost:5173
+</pre>
+
+<h3>Configure LLM Provider</h3>
+
+<p>
+Edit the <code>.env</code> file before starting the backend.
+</p>
+
+<p><strong>Option A: Cloud OpenRouter API</strong></p>
+<pre>
+OPENROUTER_API_KEY=your_key_here
+LLM_MODEL=google/gemma-4-26b-a4b-it:free
+USE_LOCAL_LLM=false
+</pre>
+
+<p><strong>Option B: Local Ollama (free, runs on CPU)</strong></p>
+<pre>
+USE_LOCAL_LLM=true
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=deepseek-r1:1.5b
+</pre>
+
+<p>
+For local LLM, make sure Ollama is installed and the model is pulled:
+</p>
+
+<pre>
+# Install Ollama then run:
+ollama pull deepseek-r1:1.5b
+ollama serve
+</pre>
+
+<h3>Development Commands</h3>
+
+<pre>
+# Backend dev mode with auto-reload
+cd backend
+python run.py
+
+# Frontend dev mode with hot reload
+cd frontend
+npm run dev
+
+# Run backend tests
+cd backend
+pytest
+
+# Run linter
+ruff check backend/
+
+# Type checking
+mypy backend/
+</pre>
+
+<h3>Docker</h3>
+
+<pre>
+# Build and run with docker-compose
+docker-compose up -d
+
+# Or build manually
+docker build -f backend/Dockerfile -t rag-track .
+docker run -p 8000:8000 --env-file .env rag-track
+</pre>
+
 <hr/>
 
 <h2>📄 License</h2>

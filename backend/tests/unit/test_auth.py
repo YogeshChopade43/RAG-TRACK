@@ -1,10 +1,12 @@
 """
 Unit tests for authentication.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi import HTTPException, Request
-from app.core.auth import get_api_key, is_token_blacklisted, add_token_to_blacklist
+
+from app.core.auth import add_token_to_blacklist, get_api_key, is_token_blacklisted
 from app.core.config import settings
 
 

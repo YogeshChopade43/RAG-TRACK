@@ -2,8 +2,8 @@
 Unit tests for logging configuration.
 """
 import logging
-import pytest
-from app.core.logging import setup_logging, get_logger, StructuredLogger
+
+from app.core.logging import StructuredLogger, get_logger, setup_logging
 
 
 class TestLogging:

@@ -2,14 +2,13 @@
 Pytest configuration and test fixtures.
 """
 
-import os
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
 
 # Add backend to path
 backend_dir = Path(__file__).parent.parent
@@ -70,7 +69,7 @@ def clean_env(monkeypatch):
     # Remove Ollama environment variables that cause validation errors
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     monkeypatch.delenv("OLLAMA_MODEL", raising=False)
-    
+
     # Set test environment
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
@@ -141,7 +140,6 @@ def sample_chunks() -> list:
 @pytest.fixture
 def temp_data_dir(tmp_path):
     """Create temporary data directory."""
-    from app.core.config import settings
     # Temporarily override data_dir
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -154,7 +152,8 @@ def temp_data_dir(tmp_path):
 @pytest.fixture
 def mock_client():
     """Create test client with mocked dependencies."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from app.main import app
 
     with patch("app.services.llm.get_llm_service") as mock_get_llm:
@@ -162,6 +161,5 @@ def mock_client():
         mock_instance.chat.return_value = "Test response"
         mock_get_llm.return_value = mock_instance
 
-        with patch("app.services.retrieval.retrieval_service.SentenceTransformer"):
-            with patch("app.services.embedding.embedding_service.SentenceTransformer"):
-                yield TestClient(app)
+        with patch("app.services.embedding.shared_model.SentenceTransformer"):
+            yield TestClient(app)

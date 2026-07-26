@@ -5,7 +5,6 @@ import os
 from app.core.config import settings
 from app.services.generic.parsers.pdf_parser import parse_pdf
 from app.services.generic.parsers.txt_parser import parse_txt
-from app.services.generic.utils.parser_utils import normalize_pages
 from app.services.text_cleaning.text_cleaning_service import TextCleaningService
 
 logger = logging.getLogger(__name__)

@@ -1,20 +1,20 @@
-import uuid
 import time
+import uuid
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 
 from .trace_model import (
-    TraceModel,
-    RetrievalChunk,
     RankedChunk,
     RankingSummary,
+    RetrievalChunk,
+    TraceModel,
 )
 
 
 class TraceService:
 
     def __init__(self):
-        self.trace: TraceModel | None = None
+        self.trace: Optional[TraceModel] = None
         self.start_times = {}
 
     # ---------- TRACE LIFECYCLE ----------
@@ -45,10 +45,10 @@ class TraceService:
     def set_rewritten_query(self, query: str):
         self.trace.rewritten_query = query
 
-    def set_decomposed_queries(self, queries: List[str]):
+    def set_decomposed_queries(self, queries: list[str]):
         self.trace.decomposed_queries = queries
 
-    def set_retrieved_chunks(self, chunks: List[dict]):
+    def set_retrieved_chunks(self, chunks: list[dict]):
         formatted_chunks = [
             RetrievalChunk(
                 chunk_id=chunk.get("chunk_id", ""),
@@ -60,7 +60,7 @@ class TraceService:
         ]
         self.trace.retrieved_chunks = formatted_chunks
 
-    def set_reranked_chunks(self, chunks: List[dict]):
+    def set_reranked_chunks(self, chunks: list[dict]):
         """Set reranked chunks with full ranking metadata."""
         formatted_chunks = []
         for chunk in chunks:
@@ -79,7 +79,7 @@ class TraceService:
             formatted_chunks.append(rc)
         self.trace.reranked_chunks = formatted_chunks
 
-    def set_ranking_summary(self, summary: Dict[str, Any]):
+    def set_ranking_summary(self, summary: dict[str, Any]):
         """Set ranking summary statistics."""
         if summary:
             self.trace.ranking_summary = RankingSummary(
@@ -92,11 +92,11 @@ class TraceService:
                 score_std=summary.get("score_std", 0.0),
             )
 
-    def set_ranking_weights(self, weights: Dict[str, float]):
+    def set_ranking_weights(self, weights: dict[str, float]):
         """Set ranking weights used."""
         self.trace.ranking_weights = weights
 
-    def set_signal_scores(self, scores: Dict[str, float]):
+    def set_signal_scores(self, scores: dict[str, float]):
         """Set average signal scores."""
         self.trace.signal_scores = scores
 
@@ -111,6 +111,13 @@ class TraceService:
 
     def set_response(self, response: str):
         self.trace.llm_response = response
+
+    def set_llm_settings(self, provider: str, model: str, temperature: float, max_tokens: int, timeout_seconds: int):
+        self.trace.llm_provider = provider
+        self.trace.llm_model = model
+        self.trace.llm_temperature = temperature
+        self.trace.llm_max_tokens = max_tokens
+        self.trace.llm_timeout_seconds = timeout_seconds
 
     def set_error(self, error: str):
         self.trace.error = error
@@ -133,7 +140,7 @@ class TraceService:
 
     # ---------- HYBRID SEARCH TRACKING ----------
 
-    def set_bm25_results(self, chunks: List[dict]):
+    def set_bm25_results(self, chunks: list[dict]):
         """
         Set raw BM25 results before fusion.
 
@@ -151,7 +158,7 @@ class TraceService:
         ]
         self.trace.bm25_results = formatted
 
-    def set_fusion_info(self, fusion_details: Dict[str, Any]):
+    def set_fusion_info(self, fusion_details: dict[str, Any]):
         """
         Set hybrid fusion metadata.
 

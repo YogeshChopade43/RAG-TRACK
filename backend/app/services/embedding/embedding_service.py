@@ -6,29 +6,14 @@ Generates embeddings for text chunks using sentence transformers.
 
 import json
 import logging
-from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any
 
 import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from app.core.config import settings
+from app.services.embedding.shared_model import get_shared_embedding_model
 
 logger = logging.getLogger(__name__)
-
-
-@lru_cache(maxsize=1)
-def get_embedding_model() -> SentenceTransformer:
-    """
-    Get cached embedding model.
-
-    Uses lru_cache to ensure model is loaded only once.
-    """
-    logger.info(f"Loading embedding model: {settings.embedding_model}")
-    model = SentenceTransformer(settings.embedding_model)
-    logger.info("Embedding model loaded successfully")
-    return model
 
 
 class EmbeddingService:
@@ -41,10 +26,10 @@ class EmbeddingService:
     def __init__(self):
         """Initialize embedding service with lazy model loading."""
         logger.debug("Initializing EmbeddingService")
-        self.model = get_embedding_model()
+        self.model = get_shared_embedding_model()
         settings.vector_store_dir.mkdir(parents=True, exist_ok=True)
 
-    def embed(self, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def embed(self, chunks: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Generate embeddings for chunks and build FAISS index.
 

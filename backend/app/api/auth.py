@@ -8,8 +8,8 @@ import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Header
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -18,12 +18,14 @@ from app.core.auth_service import (
     change_password,
     create_tokens,
     is_token_revoked,
-    logout as revoke_token,
     register_user,
 )
+from app.core.auth_service import (
+    logout as revoke_token,
+)
 from app.core.security import decode_token
-from app.db.session import get_db
 from app.db.models.user import User
+from app.db.session import get_db
 
 router = APIRouter()
 
@@ -108,10 +110,10 @@ async def get_current_user(
 ) -> User:
     """
     Get current user from JWT token.
-    
+
     Returns:
         User object
-        
+
     Raises:
         HTTPException: If token is invalid or user not found
     """
@@ -120,48 +122,48 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
-    
+
     token = credentials.credentials
-    
+
     try:
         payload = decode_token(token)
         user_id = payload.get("sub")
-        
+
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
             )
-        
+
         if is_token_revoked(db, token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has been revoked",
             )
-        
+
         user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
-        
+
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found",
             )
-        
+
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Inactive user",
             )
-        
+
         return user
-        
+
     except HTTPException:
         raise
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
-        )
+        ) from None
 
 
 def get_current_active_user(
@@ -188,7 +190,7 @@ async def register(
         password=request.password,
         full_name=request.full_name,
     )
-    
+
     return RegisterResponse(
         id=str(user.id),
         email=user.email,
@@ -204,15 +206,15 @@ async def login(
 ):
     """Login and get access/refresh tokens."""
     user = authenticate_user(db, request.email, request.password)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    
+
     tokens = create_tokens(db, user)
-    
+
     return tokens
 
 
@@ -224,33 +226,33 @@ async def refresh_token(
     """Refresh access token using refresh token."""
     try:
         payload = decode_token(request.refresh_token)
-        
+
         if payload.get("type") != "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token type",
             )
-        
+
         user_id = payload.get("sub")
         user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
-        
+
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found",
             )
-        
+
         tokens = create_tokens(db, user)
-        
+
         return tokens
-        
+
     except HTTPException:
         raise
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
-        )
+        ) from None
 
 
 @router.post("/logout")
@@ -263,10 +265,10 @@ async def logout_user(
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization.replace("Bearer ", "")
-    
+
     if token:
         revoke_token(db, current_user.id, token)
-    
+
     return {"message": "Successfully logged out"}
 
 
@@ -291,5 +293,5 @@ async def change_user_password(
 ):
     """Change user password."""
     change_password(db, current_user, request.current_password, request.new_password)
-    
+
     return {"message": "Password changed successfully"}

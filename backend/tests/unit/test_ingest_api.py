@@ -1,10 +1,11 @@
 """
 Unit tests for Ingest API endpoints.
 """
-import pytest
-from unittest.mock import patch
-from fastapi import UploadFile, HTTPException
 import io
+from unittest.mock import patch
+
+import pytest
+from fastapi import UploadFile
 
 
 class TestIngestAPI:
@@ -46,8 +47,8 @@ trailer<</Root 1 0 R>>
 
     def test_ingest_document_success_text(self, client):
         """Test successful text document ingestion."""
-        with patch('app.api.ingest.save_raw_file') as mock_save, \
-             patch('app.api.ingest.ingest', return_value={"status": "completed"}) as mock_ingest:
+        with patch('app.api.ingest.save_raw_file'), \
+             patch('app.api.ingest.ingest', return_value={"status": "completed"}):
             response = client.post(
                 "/ingest",
                 files={"file": ("test.txt", b"Sample content", "text/plain")}
@@ -91,8 +92,9 @@ trailer<</Root 1 0 R>>
     def test_get_document_endpoint(self, client):
         """Test getting document metadata."""
         document_id = "550e8400-e29b-41d4-a716-446655440000"
-        from app.core.config import settings
         import shutil
+
+        from app.core.config import settings
 
         raw_doc_dir = settings.raw_dir / document_id
         raw_doc_dir.mkdir(parents=True, exist_ok=True)
@@ -124,8 +126,9 @@ trailer<</Root 1 0 R>>
     def test_delete_document(self, client):
         """Test deleting a document."""
         document_id = "550e8400-e29b-41d4-a716-446655440002"
-        from app.core.config import settings
         import shutil
+
+        from app.core.config import settings
 
         raw_doc_dir = settings.raw_dir / document_id
         raw_doc_dir.mkdir(parents=True, exist_ok=True)

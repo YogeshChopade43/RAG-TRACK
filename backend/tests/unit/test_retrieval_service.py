@@ -1,13 +1,14 @@
 """
 Unit tests for RetrievalService.
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-import numpy as np
-import faiss
 import json
-import tempfile
-from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import faiss
+import numpy as np
+import pytest
+
+from app.services.embedding.shared_model import get_shared_embedding_model
 
 
 class TestRetrievalService:
@@ -16,15 +17,17 @@ class TestRetrievalService:
     @pytest.fixture
     def service(self, tmp_path):
         """Create retrieval service with mocked model."""
-        with patch('app.services.retrieval.retrieval_service.SentenceTransformer') as mock_st:
+        with patch('app.services.embedding.shared_model.SentenceTransformer') as mock_st:
             mock_model = Mock()
             # Return a 384-dim embedding
             mock_model.encode.return_value = np.random.rand(384).astype('float32')
             mock_st.return_value = mock_model
+            get_shared_embedding_model.cache_clear()
 
             with patch('app.services.retrieval.retrieval_service.settings') as mock_settings:
                 mock_settings.embedding_model = "test-model"
                 mock_settings.vector_store_dir = tmp_path
+                mock_settings.use_reranking = False
 
                 from app.services.retrieval.retrieval_service import RetrievalService
                 svc = RetrievalService()
@@ -104,11 +107,13 @@ class TestRetrievalService:
 
     def test_retrieval_service_initialization(self):
         """Test service instance creation."""
-        with patch('app.services.retrieval.retrieval_service.settings') as mock_settings:
-            mock_settings.embedding_model = "test-model"
-            mock_settings.vector_store_dir = MagicMock()
-            with patch('app.services.retrieval.retrieval_service.SentenceTransformer') as mock_st:
-                mock_st.return_value = Mock()
+        with patch('app.services.embedding.shared_model.SentenceTransformer') as mock_st:
+            mock_st.return_value = Mock()
+            get_shared_embedding_model.cache_clear()
+            with patch('app.services.retrieval.retrieval_service.settings') as mock_settings:
+                mock_settings.embedding_model = "test-model"
+                mock_settings.vector_store_dir = MagicMock()
+                mock_settings.use_reranking = False
                 from app.services.retrieval.retrieval_service import RetrievalService
                 svc = RetrievalService()
                 assert svc is not None

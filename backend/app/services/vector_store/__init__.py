@@ -4,14 +4,34 @@ Vector store abstraction for RAG-TRACK.
 Provides pluggable vector store implementations.
 """
 import logging
+import os
+import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import faiss
 import numpy as np
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
+
+
+def _atomic_write(file_path: Path, data: bytes) -> None:
+    """Write binary data atomically using a temp file and rename."""
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=file_path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(str(tmp_path), str(file_path))
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 class VectorStore(ABC):
@@ -21,9 +41,9 @@ class VectorStore(ABC):
     def add_vectors(
         self,
         vectors: np.ndarray,
-        metadata: List[Dict[str, Any]],
+        metadata: list[dict[str, Any]],
         document_id: str,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Add vectors to the store.
 
@@ -43,7 +63,7 @@ class VectorStore(ABC):
         query_vector: np.ndarray,
         document_id: str,
         top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search for similar vectors.
 
@@ -96,7 +116,15 @@ class FaissVectorStore(VectorStore):
         """
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Initialized FAISS vector store at {self.storage_dir}")
+        logger.info("Initialized FAISS vector store at %s", self.storage_dir)
+
+    def _create_index(self, dim: int) -> faiss.Index:
+        """Create a FAISS index based on settings."""
+        if settings.faiss_index_type == "hnsw":
+            index = faiss.IndexHNSWFlat(dim, settings.faiss_hnsw_m)
+            index.hnsw.efConstruction = settings.faiss_hnsw_ef_construction
+            return index
+        return faiss.IndexFlatL2(dim)
 
     def _get_index_path(self, document_id: str) -> Path:
         """Get path to index file."""
@@ -109,28 +137,39 @@ class FaissVectorStore(VectorStore):
     def add_vectors(
         self,
         vectors: np.ndarray,
-        metadata: List[Dict[str, Any]],
+        metadata: list[dict[str, Any]],
         document_id: str,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Add vectors using FAISS."""
         import json
 
         # Create index
         dim = vectors.shape[1]
-        index = faiss.IndexFlatL2(dim)
+        index = self._create_index(dim)
         index.add(vectors.astype("float32"))
 
-        # Save index
+        # Save index atomically
         index_path = self._get_index_path(document_id)
-        faiss.write_index(index, str(index_path))
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=index_path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                faiss.write_index(index, f)
+            os.replace(tmp_path, str(index_path))
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
-        # Save metadata
+        # Save metadata atomically
         metadata_path = self._get_metadata_path(document_id)
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=2)
+        metadata_bytes = json.dumps(metadata, indent=2).encode("utf-8")
+        _atomic_write(metadata_path, metadata_bytes)
 
         logger.info(
-            f"Added vectors",
+            "Added vectors",
             document_id=document_id,
             count=len(metadata),
         )
@@ -145,7 +184,7 @@ class FaissVectorStore(VectorStore):
         query_vector: np.ndarray,
         document_id: str,
         top_k: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search using FAISS."""
         import json
 
@@ -158,8 +197,11 @@ class FaissVectorStore(VectorStore):
         # Load index
         index = faiss.read_index(str(index_path))
 
+        if hasattr(index, "hnsw"):
+            index.hnsw.efSearch = settings.faiss_hnsw_ef_search
+
         # Load metadata
-        with open(metadata_path, "r", encoding="utf-8") as f:
+        with open(metadata_path, encoding="utf-8") as f:
             metadata = json.load(f)
 
         # Search
@@ -192,7 +234,7 @@ class FaissVectorStore(VectorStore):
             deleted = True
 
         if deleted:
-            logger.info(f"Deleted vectors for document: {document_id}")
+            logger.info("Deleted vectors for document: %s", document_id)
 
         return deleted
 
@@ -203,13 +245,11 @@ class FaissVectorStore(VectorStore):
 
 def get_vector_store() -> VectorStore:
     """Get configured vector store instance."""
-    from app.core.config import settings
-
     store_type = settings.vector_store_type
 
     if store_type == "faiss":
         return FaissVectorStore(settings.vector_store_dir)
 
     # Default to FAISS
-    logger.warning(f"Unknown store type: {store_type}, defaulting to FAISS")
+    logger.warning("Unknown store type: %s, defaulting to FAISS", store_type)
     return FaissVectorStore(settings.vector_store_dir)

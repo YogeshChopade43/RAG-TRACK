@@ -1,9 +1,10 @@
 """
 Unit tests for PDF parser.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import json
+
 from app.services.generic.parsers.pdf_parser import parse_pdf
 
 

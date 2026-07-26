@@ -1,12 +1,13 @@
 """
 Unit tests for EmbeddingService.
 """
-import pytest
 from unittest.mock import Mock, patch
+
 import numpy as np
-import tempfile
-import os
+import pytest
+
 from app.services.embedding.embedding_service import EmbeddingService
+from app.services.embedding.shared_model import get_shared_embedding_model
 
 
 class TestEmbeddingService:
@@ -15,10 +16,11 @@ class TestEmbeddingService:
     @pytest.fixture
     def service(self, tmp_path):
         """Create embedding service with mocked model."""
-        with patch('app.services.embedding.embedding_service.SentenceTransformer') as mock_st:
+        with patch('app.services.embedding.shared_model.SentenceTransformer') as mock_st:
             mock_model = Mock()
             mock_model.encode.return_value = np.random.rand(2, 384).astype('float32')
             mock_st.return_value = mock_model
+            get_shared_embedding_model.cache_clear()
 
             with patch('app.services.embedding.embedding_service.settings') as mock_settings:
                 mock_settings.vector_store_dir = tmp_path
@@ -78,29 +80,23 @@ class TestEmbeddingService:
         assert metadata_file.exists()
 
         import json
-        with open(metadata_file, 'r') as f:
+        with open(metadata_file) as f:
             metadata = json.load(f)
 
         assert len(metadata) == 2
         assert metadata[0]["chunk_id"] == "test-doc-123_chunk_1"
 
-    def test_get_embedding_model_returns_singleton(self):
-        """Test that get_embedding_model returns cached instance."""
-        from app.services.embedding.embedding_service import get_embedding_model
-
-        with patch('app.services.embedding.embedding_service.SentenceTransformer') as mock_st:
+    def test_get_shared_embedding_model_returns_singleton(self):
+        """Test that get_shared_embedding_model returns cached instance."""
+        with patch('app.services.embedding.shared_model.SentenceTransformer') as mock_st:
             mock_model = Mock()
             mock_st.return_value = mock_model
 
-            with patch('app.services.embedding.embedding_service.settings') as mock_settings:
-                mock_settings.embedding_model = "test-model"
-
-                # Clear cache first
-                get_embedding_model.cache_clear()
-                model1 = get_embedding_model()
-                model2 = get_embedding_model()
-                assert model1 is model2
-                mock_st.assert_called_once()
+            get_shared_embedding_model.cache_clear()
+            model1 = get_shared_embedding_model()
+            model2 = get_shared_embedding_model()
+            assert model1 is model2
+            mock_st.assert_called_once()
 
     def test_embedding_service_repr(self, service):
         """Test __repr__ string."""

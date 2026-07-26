@@ -1,22 +1,21 @@
 """
 Unit tests for custom exception classes.
 """
-import pytest
 from app.core.exceptions import (
-    RAGTrackError,
-    IngestionError,
-    ParsingError,
     ChunkingError,
+    ConfigurationError,
     EmbeddingError,
-    RetrievalError,
-    VectorStoreError,
-    LLMError,
-    LLMTimeoutError,
+    IngestionError,
+    LLMAuthenticationError,
     LLMConnectionError,
     LLMEmptyResponseError,
-    LLMAuthenticationError,
+    LLMError,
+    LLMTimeoutError,
+    ParsingError,
+    RAGTrackError,
+    RetrievalError,
     ValidationError,
-    ConfigurationError,
+    VectorStoreError,
 )
 
 

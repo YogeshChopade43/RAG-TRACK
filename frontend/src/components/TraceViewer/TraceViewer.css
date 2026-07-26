@@ -391,3 +391,33 @@
   padding: var(--space-xs) var(--space-sm);
   border-radius: 4px;
 }
+
+.llm-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.llm-setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 120px;
+}
+
+.llm-label {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.llm-value {
+  font-family: var(--font-code);
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+}

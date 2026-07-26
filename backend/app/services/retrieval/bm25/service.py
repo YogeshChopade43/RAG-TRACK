@@ -5,14 +5,12 @@ Manages per-document BM25 indexes with lazy loading from disk,
 caching in memory, and search functionality.
 """
 
-import json
 import logging
 import pickle
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 
 from rank_bm25 import BM25Okapi
-from sklearn.metrics.pairwise import cosine_similarity
 
 from app.core.config import settings
 from app.services.retrieval.bm25.tokenizer import tokenize
@@ -31,13 +29,13 @@ class BM25Service:
 
     def __init__(self):
         """Initialize BM25 service with empty cache."""
-        self.indexes: Dict[str, BM25Okapi] = {}
-        self.corpus_map: Dict[str, List[Dict[str, Any]]] = {}
+        self.indexes: dict[str, BM25Okapi] = {}
+        self.corpus_map: dict[str, list[dict[str, Any]]] = {}
         logger.info("BM25Service initialized")
 
     def build_index(
         self,
-        chunks: List[Dict[str, Any]],
+        chunks: list[dict[str, Any]],
         document_id: str
     ) -> Optional[Path]:
         """
@@ -126,7 +124,7 @@ class BM25Service:
         document_id: str,
         query: str,
         top_k: int = 3
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search document using BM25 scoring.
 

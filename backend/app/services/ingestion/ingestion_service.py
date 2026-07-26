@@ -6,19 +6,13 @@ Includes comprehensive error handling and cleanup for partial files.
 """
 
 import logging
-import os
-from pathlib import Path
 
 from app.core.config import settings
 from app.core.exceptions import (
-    ChunkingError,
-    EmbeddingError,
     IngestionError,
-    ParsingError,
 )
 from app.services.chunking.chunking_service import ChunkingService
 from app.services.embedding.embedding_service import EmbeddingService
-from app.services.generic.update_vector_store import save_document_vector_store
 from app.services.generic.utils.parser_utils import get_page_text
 from app.services.parsing.parsing_service import ParsingService
 from app.services.retrieval.bm25.service import BM25Service
@@ -124,17 +118,6 @@ def ingest(document_id: str, filename: str) -> dict:
 
         # Stage 4: Save to vector store
         logger.debug(f"[{document_id}] Vector store save starting")
-        try:
-            save_document_vector_store(document_id, embedded_chunks)
-        except Exception as e:
-            logger.error(f"[{document_id}] Vector store save failed: {e}")
-            raise IngestionError(
-                message=f"Failed to save to vector store: {str(e)}",
-                stage="vector_store",
-                document_id=document_id,
-            ) from e
-
-        logger.info(f"[{document_id}] Vector store saved successfully")
 
         # Stage 5: Build BM25 index (best-effort, don't fail ingestion if this fails)
         logger.debug(f"[{document_id}] BM25 index build starting")

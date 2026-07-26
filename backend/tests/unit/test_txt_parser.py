@@ -1,9 +1,11 @@
 """
 Unit tests for TXT parser.
 """
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
+
 from app.services.generic.parsers.txt_parser import parse_txt
 
 

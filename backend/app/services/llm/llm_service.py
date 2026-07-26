@@ -7,14 +7,14 @@ import logging
 import os
 from typing import Optional
 
+from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.responses import Response
-from dotenv import load_dotenv
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
 from app.core.config import settings
@@ -89,7 +89,7 @@ class LLMService:
         """
         try:
             logger.debug(
-                f"Sending request to LLM",
+                "Sending request to LLM",
                 model=self.model,
                 prompt_length=len(user_prompt),
             )
@@ -115,7 +115,7 @@ class LLMService:
                     if item.content and hasattr(item.content[0], "text"):
                         text = item.content[0].text
                         logger.debug(
-                            f"LLM response received",
+                            "LLM response received",
                             text_length=len(text),
                         )
                         return text.strip()

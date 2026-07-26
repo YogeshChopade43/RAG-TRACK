@@ -1,4 +1,3 @@
-from pypdf import PdfReader
 import logging
 
 logger = logging.getLogger(__name__)

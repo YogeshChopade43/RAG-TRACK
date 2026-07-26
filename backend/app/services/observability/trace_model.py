@@ -1,13 +1,14 @@
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field
 
 
 class RetrievalChunk(BaseModel):
     chunk_id: str
     content: str
     score: float
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RankingSignal(BaseModel):
@@ -46,25 +47,30 @@ class TraceModel(BaseModel):
     # Query
     original_query: str
     rewritten_query: Optional[str] = None
-    decomposed_queries: List[str] = Field(default_factory=list)
+    decomposed_queries: list[str] = Field(default_factory=list)
 
     # Retrieval
-    retrieved_chunks: List[RetrievalChunk] = Field(default_factory=list)
-    bm25_results: List[RetrievalChunk] = Field(default_factory=list)
-    fusion_details: Optional[Dict[str, Any]] = None
-    reranked_chunks: List[RankedChunk] = Field(default_factory=list)
+    retrieved_chunks: list[RetrievalChunk] = Field(default_factory=list)
+    bm25_results: list[RetrievalChunk] = Field(default_factory=list)
+    fusion_details: Optional[dict[str, Any]] = None
+    reranked_chunks: list[RankedChunk] = Field(default_factory=list)
     ranking_summary: Optional[RankingSummary] = None
-    ranking_weights: Optional[Dict[str, float]] = None
-    signal_scores: Optional[Dict[str, Optional[float]]] = None
+    ranking_weights: Optional[dict[str, float]] = None
+    signal_scores: Optional[dict[str, Optional[float]]] = None
 
     # Context
     final_context: Optional[str] = None
 
     # Generation
     llm_response: Optional[str] = None
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
+    llm_temperature: Optional[float] = None
+    llm_max_tokens: Optional[int] = None
+    llm_timeout_seconds: Optional[int] = None
 
     # Metrics
-    latency: Dict[str, float] = Field(default_factory=dict)
+    latency: dict[str, float] = Field(default_factory=dict)
 
     # Errors
     error: Optional[str] = None

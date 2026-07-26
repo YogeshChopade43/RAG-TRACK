@@ -1,8 +1,10 @@
 """
 Unit tests for ParsingService.
 """
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import Mock, patch
+
 from app.services.parsing.parsing_service import ParsingService
 
 
@@ -43,8 +45,9 @@ class TestParsingService:
     def test_parse_txt_success(self, service):
         """Test successful parsing of a text file."""
         document_id = "test-txt-doc-123"
-        from app.core.config import settings
         import shutil
+
+        from app.core.config import settings
 
         raw_dir = settings.raw_dir / document_id
         raw_dir.mkdir(parents=True, exist_ok=True)
@@ -74,8 +77,9 @@ class TestParsingService:
     def test_parse_handles_empty_text_file(self, service):
         """Test parsing a text file with only whitespace."""
         document_id = "empty-doc-456"
-        from app.core.config import settings
         import shutil
+
+        from app.core.config import settings
 
         raw_dir = settings.raw_dir / document_id
         raw_dir.mkdir(parents=True, exist_ok=True)

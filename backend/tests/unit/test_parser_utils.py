@@ -1,12 +1,12 @@
 """
 Unit tests for parser utility functions.
 """
-import pytest
 import logging
+
 from app.services.generic.utils.parser_utils import (
-    normalize_text,
-    normalize_pages,
     get_page_text,
+    normalize_pages,
+    normalize_text,
 )
 
 

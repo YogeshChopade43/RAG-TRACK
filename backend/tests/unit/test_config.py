@@ -1,9 +1,7 @@
 """
 Unit tests for configuration settings.
 """
-import pytest
-from unittest.mock import patch
-from app.core.config import Settings, get_settings, CHUNK_SIZE, CHUNK_OVERLAP
+from app.core.config import CHUNK_OVERLAP, CHUNK_SIZE, Settings, get_settings
 
 
 class TestConfig:

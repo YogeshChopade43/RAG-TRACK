@@ -4,20 +4,21 @@ Ingestion API endpoints for RAG-TRACK.
 Provides document upload and processing endpoints.
 """
 
+import asyncio
 import logging
 import os
 import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.core.auth import get_api_key
 from app.core.config import settings
 from app.core.ratelimit import default_limit
-from app.core.auth import get_api_key
 from app.services.generic.file_storage import save_raw_file
 from app.services.ingestion.ingestion_service import ingest
 
@@ -125,21 +126,21 @@ async def ingest_document(
     try:
         safe_filename = secure_filename(file.filename)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
 
     # Validate extension
     try:
-        ext = validate_file_extension(safe_filename)
+        validate_file_extension(safe_filename)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
 
     # Read file content
     try:
         content = await file.read()
     except Exception:
-        raise HTTPException(status_code=400, detail="Failed to read file")
+        raise HTTPException(status_code=400, detail="Failed to read file") from None
 
     # Validate file size
     size_bytes = len(content)
@@ -162,9 +163,10 @@ async def ingest_document(
             content=content,
         )
 
-        # Trigger ingestion pipeline
-        # Note: For large files, this should be async with task queue
-        result = ingest(document_id, filename=safe_filename)
+        # Trigger ingestion pipeline off the event loop
+        await asyncio.get_running_loop().run_in_executor(
+            None, lambda: ingest(document_id, filename=safe_filename)
+        )
 
         logger.info(f"Document ingested successfully: {document_id}")
 
@@ -177,10 +179,10 @@ async def ingest_document(
 
     except ValueError as e:
         logger.warning(f"Validation error during ingestion: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     except Exception as e:
         logger.exception(f"Ingestion failed for {document_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process document")
+        raise HTTPException(status_code=500, detail="Failed to process document") from None
 
 
 @router.get("/{document_id}")

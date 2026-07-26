@@ -25,7 +25,7 @@ _token_blacklist: set = set()
 
 
 async def get_api_key(
-    request: Request, api_key: Optional[str] = Header(None, alias="X-API-Key")
+    request: Request,     api_key: Optional[str] = Header(None, alias="X-API-Key")
 ) -> str:
     """
     Validate API key from request header.
@@ -87,18 +87,18 @@ def is_token_blacklisted(token: str) -> bool:
 async def get_optional_current_user(request: Request) -> Optional[object]:
     """
     Get current user from JWT token if present.
-    
+
     Supports both API key and JWT authentication.
     Returns None for unauthenticated requests (for optional auth).
     """
     from app.core.security import decode_token
-    
+
     authorization = request.headers.get("Authorization")
     if not authorization or not authorization.startswith("Bearer "):
         return None
-    
+
     token = authorization.replace("Bearer ", "")
-    
+
     try:
         payload = decode_token(token)
         if is_token_blacklisted(token):

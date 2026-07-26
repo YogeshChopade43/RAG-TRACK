@@ -4,11 +4,10 @@ Centralized configuration for RAG-TRACK application.
 Uses pydantic-settings for environment-based configuration with validation.
 """
 
-import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Determine project root (parent of backend directory)
@@ -37,19 +36,41 @@ class Settings(BaseSettings):
             return v.lower() not in ("false", "0", "no", "release")
         return v
 
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        """Validate that production secrets are not using default values."""
+        if self.environment == "production":
+            if self.secret_key == "your-secret-key-change-in-production":
+                raise ValueError(
+                    "SECRET_KEY must be changed in production. "
+                    "Set a strong SECRET_KEY in your environment."
+                )
+
+            if not self.use_local_llm and not self.openrouter_api_key:
+                raise ValueError(
+                    "Either OPENROUTER_API_KEY must be set or USE_LOCAL_LLM=true "
+                    "in production."
+                )
+
+            if not self.database_url:
+                raise ValueError(
+                    "DATABASE_URL must be set in production."
+                )
+        return self
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
 
     # CORS - configurable via environment
-    allowed_origins: List[str] = Field(
+    allowed_origins: list[str] = Field(
         default=["http://localhost:5173", "http://127.0.0.1:5173"],
         validation_alias="ALLOWED_ORIGINS",
     )
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
-    def parse_origins(cls, v: str) -> List[str]:
+    def parse_origins(cls, v: str) -> list[str]:
         """Parse comma-separated origins into a list."""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
@@ -61,7 +82,7 @@ class Settings(BaseSettings):
     rate_limit_burst: int = 10
 
     # File Upload
-    allowed_extensions: List[str] = Field(default=["pdf", "txt"])
+    allowed_extensions: list[str] = Field(default=["pdf", "txt"])
     max_file_size_mb: int = 10
     max_file_size_bytes: int = Field(default=10 * 1024 * 1024)
 
@@ -82,6 +103,10 @@ class Settings(BaseSettings):
 
     # Vector Store
     vector_store_type: str = "faiss"  # faiss, qdrant, pinecone
+    faiss_index_type: str = "hnsw"  # flat, hnsw
+    faiss_hnsw_m: int = 32
+    faiss_hnsw_ef_construction: int = 64
+    faiss_hnsw_ef_search: int = 64
 
     # Reranking
     use_reranking: bool = True
@@ -120,7 +145,7 @@ class Settings(BaseSettings):
 
     # Authentication
     api_key: Optional[str] = Field(default=None, validation_alias="API_KEY")
-    
+
     # JWT Settings
     secret_key: str = Field(
         default="your-secret-key-change-in-production",
@@ -133,14 +158,17 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = Field(
         default=7, validation_alias="REFRESH_TOKEN_EXPIRE_DAYS"
     )
-    
+
     # Password validation
     min_password_length: int = 8
 
     # Retrieval
     top_k_retrieval: int = 5
     retrieval_score_threshold: float = 0.0
-    enable_multi_document: bool = False
+    enable_multi_document: bool = True
+
+    # Upload limits
+    max_upload_size: int = 50 * 1024 * 1024  # 50 MB
 
     # Query Processing
     max_sub_queries: int = 5
@@ -158,7 +186,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"  # json, text
 
-    # Database (future use)
+    # Database
     database_url: Optional[str] = Field(default=None, validation_alias="DATABASE_URL")
 
     # Redis (future use)

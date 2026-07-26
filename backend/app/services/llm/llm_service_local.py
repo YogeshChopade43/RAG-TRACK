@@ -13,9 +13,9 @@ import requests
 from dotenv import load_dotenv
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
 from app.core.config import settings
@@ -92,7 +92,7 @@ class LLMServiceLocal:
         """
         try:
             logger.debug(
-                f"Sending request to Ollama",
+                "Sending request to Ollama",
                 model=self.model,
                 prompt_length=len(user_prompt),
             )
@@ -138,10 +138,10 @@ class LLMServiceLocal:
 
         except requests.exceptions.Timeout:
             logger.error(f"Ollama request timed out after {self.timeout}s")
-            raise LLMTimeoutError(f"Request timed out after {self.timeout} seconds")
+            raise LLMTimeoutError(f"Request timed out after {self.timeout} seconds") from None
         except requests.exceptions.RequestException as e:
             logger.error(f"Ollama request failed: {str(e)}")
-            raise LLMAPIError(f"Ollama API error: {str(e)}")
+            raise LLMAPIError(f"Ollama API error: {str(e)}") from None
         except Exception as e:
             logger.error(f"LLM request failed: {str(e)}")
             raise

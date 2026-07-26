@@ -18,12 +18,12 @@ def get_llm_service():
 
     Uses Ollama (local) if USE_LOCAL_LLM=true or OLLAMA_BASE_URL is set,
     otherwise uses OpenRouter.
-    
+
     Returns:
         LLMService or LLMServiceLocal instance
     """
     from app.core.config import settings
-    
+
     if settings.use_local_llm or settings.ollama_base_url:
         logger.info("Using local LLM (Ollama)")
         from app.services.llm.llm_service_local import LLMServiceLocal

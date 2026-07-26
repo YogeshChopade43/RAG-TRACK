@@ -12,10 +12,15 @@ ignore = [
     "E501",   # line too long (let black handle this)
     "B008",   # do not perform function in argument defaults
     "C901",   # too complex (let complexity metrics handle this)
+    "UP045",  # Use X | None for type annotations (requires Python 3.10+)
+    "UP007",  # Use X | Y for type annotations (requires Python 3.10+)
+    "B905",   # zip() without strict= parameter (requires Python 3.10+)
 ]
 
 [lint.per-file-ignores]
 "tests/*" = ["E501", "B011"]
+"tests/integration/*" = ["E501", "B011"]
+"tests/load/*" = ["E501", "B011"]
 "__init__.py" = ["F401"]
 
 [format]

@@ -2,8 +2,9 @@
 Unit tests for QueryRewriteService.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from app.services.query.query_rewrite.query_rewrite_service import QueryRewriteService
 

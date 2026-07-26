@@ -1,9 +1,9 @@
 """
 Unit tests for rate limiting configuration.
 """
-import pytest
 import logging
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 

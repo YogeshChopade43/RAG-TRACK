@@ -4,12 +4,67 @@ Logging configuration for RAG-TRACK application.
 Provides structured logging with JSON support for production observability.
 """
 
+import json
 import logging
 import logging.config
 import sys
-from typing import Any, Dict
+import traceback
+from typing import Any
 
 from app.core.config import settings
+
+
+class JsonFormatter(logging.Formatter):
+    """Format log records as JSON."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_data: dict[str, Any] = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+
+        if record.exc_info:
+            log_data["exception"] = traceback.format_exception(*record.exc_info)
+
+        if record.stack_info:
+            log_data["stack_info"] = record.stack_info
+
+        extra = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key
+            not in (
+                "name",
+                "msg",
+                "args",
+                "created",
+                "relativeCreated",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "pathname",
+                "filename",
+                "module",
+                "levelname",
+                "levelno",
+                "thread",
+                "threadName",
+                "process",
+                "processName",
+                "msecs",
+                "message",
+                "taskName",
+            )
+            and not key.startswith("_")
+        }
+        if extra:
+            log_data.update(extra)
+
+        return json.dumps(log_data, default=str)
 
 
 def setup_logging() -> None:
@@ -17,18 +72,16 @@ def setup_logging() -> None:
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 
     if settings.log_format == "json":
-        # Use standard logging for now - JSON formatting can be added with python-json-logger
-        logging.basicConfig(
-            level=log_level,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            handlers=[logging.StreamHandler(sys.stdout)],
-        )
+        formatter = JsonFormatter()
     else:
-        logging.basicConfig(
-            level=log_level,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            handlers=[logging.StreamHandler(sys.stdout)],
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+
+    logging.basicConfig(level=log_level, handlers=[handler])
 
     # Set specific loggers
     logging.getLogger("uvicorn").setLevel(log_level)

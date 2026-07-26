@@ -6,13 +6,12 @@ Uses simple whitespace tokenization with a comprehensive stopword list
 """
 
 import re
-from typing import List
 
 # Comprehensive stopword list (same as reranking_service.py)
 STOPWORDS = {
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
     'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-    'to', 'was', 'will', 'with', 'the', 'this', 'but', 'they', 'have',
+    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have',
     'had', 'what', 'said', 'each', 'which', 'she', 'do', 'how', 'their',
     'if', 'up', 'out', 'many', 'then', 'them', 'these', 'so', 'some', 'her',
     'would', 'make', 'like', 'into', 'him', 'time', 'two', 'more', 'go',
@@ -33,7 +32,7 @@ STOPWORDS = {
     'still', 'learn', 'should', 'world', 'high', 'every', 'between',
     'both', 'country', 'under', 'last', 'never', 'dear', 'word', 'while',
     'below', 'above', 'along', 'among', 'whether', 'upon', 'either',
-    'neither', 'across', 'toward', 'towards', 'onto', 'into', 'within',
+    'neither', 'across', 'toward', 'towards', 'onto', 'within',
     'without', 'behind', 'beyond', 'plus', 'minus', 'except', 'until',
     'since', 'despite', 'unlike', 'including', 'regarding', 'concerning',
     'considering', 'regardless', 'notwithstanding', 'according',
@@ -42,19 +41,18 @@ STOPWORDS = {
     'likewise', 'similarly', 'namely', 'specifically', 'particularly',
     'especially', 'indeed', 'actually', 'really', 'quite', 'rather',
     'somewhat', 'slightly', 'barely', 'hardly', 'scarcely', 'almost',
-    'nearly', 'approximately', 'roughly', 'about', 'around', 'circa',
-    'versus', 'via', 'per', 'pro', 'con', 'anti', 'non', 'un', 'in',
-    'im', 'ir', 'il', 'dis', 'mis', 'over', 're', 'pre', 'post', 'sub',
+    'nearly', 'approximately', 'roughly', 'about', 'circa',
+    'versus', 'via', 'per', 'pro', 'con', 'anti', 'non', 'un', 'im', 'ir', 'il', 'dis', 'mis', 're', 'pre', 'post', 'sub',
     'super', 'trans', 'inter', 'intra', 'extra', 'ultra', 'mega', 'micro',
-    'macro', 'multi', 'semi', 'quasi', 'pseudo', 'neo', 'anti', 'counter',
-    'pro', 'contra', 'vice', 'para', 'ortho', 'meta', 'epi', 'hypo',
+    'macro', 'multi', 'semi', 'quasi', 'pseudo', 'neo', 'counter',
+    'contra', 'vice', 'para', 'ortho', 'meta', 'epi', 'hypo',
     'hyper', 'endo', 'exo', 'ecto', 'meso', 'thermo', 'hydro', 'geo',
     'bio', 'psycho', 'socio', 'chrono', 'auto', 'hetero', 'homo', 'mono',
     'di', 'tri', 'tetra', 'penta', 'hexa', 'hepta', 'octa', 'nona', 'deca',
 }
 
 
-def tokenize(text: str) -> List[str]:
+def tokenize(text: str) -> list[str]:
     """
     Tokenize text into lowercase tokens, removing stopwords and punctuation.
 

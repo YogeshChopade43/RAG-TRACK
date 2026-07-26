@@ -1,7 +1,6 @@
 import logging
-from typing import List
 
-from app.core.config import CHUNK_SIZE, CHUNK_OVERLAP
+from app.core.config import CHUNK_OVERLAP, CHUNK_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class ChunkingService:
         counter = start_counter
 
         sentences = self._split_into_sentences(text)
-        
+
         if not sentences:
             if text.strip():
                 chunk_id = f"{document_id}_chunk_{counter}"
@@ -66,13 +65,13 @@ class ChunkingService:
         chunk_start = 0
         last_sentence_end = 0
 
-        for i, sentence in enumerate(sentences):
+        for _i, sentence in enumerate(sentences):
             sentence_len = len(sentence)
-            
+
             if current_chunk_len + sentence_len > self.chunk_size and current_chunk_sentences:
                 chunk_text = "".join(current_chunk_sentences)
                 chunk_id = f"{document_id}_chunk_{counter}"
-                
+
                 chunks.append({
                     "chunk_id": chunk_id,
                     "file_name": fname,
@@ -82,9 +81,9 @@ class ChunkingService:
                     "char_start": chunk_start,
                     "char_end": chunk_start + len(chunk_text),
                 })
-                
+
                 counter += 1
-                
+
                 overlap_len = 0
                 overlap_text = ""
                 for sent in reversed(current_chunk_sentences):
@@ -93,11 +92,11 @@ class ChunkingService:
                         overlap_len += len(sent)
                     else:
                         break
-                
+
                 current_chunk_sentences = [overlap_text] if overlap_text.strip() else []
                 current_chunk_len = len(overlap_text)
                 chunk_start = chunk_start + len(chunk_text) - overlap_len
-            
+
             current_chunk_sentences.append(sentence)
             current_chunk_len += sentence_len
             last_sentence_end = chunk_start + current_chunk_len
@@ -117,19 +116,19 @@ class ChunkingService:
 
         return chunks
 
-    def _split_into_sentences(self, text: str) -> List[str]:
+    def _split_into_sentences(self, text: str) -> list[str]:
         sentences = []
         current = []
         i = 0
-        
+
         while i < len(text):
             current.append(text[i])
-            
+
             if text[i] in '.!?':
                 if i + 1 < len(text) and text[i + 1] in '.!?':
                     i += 1
                     current.append(text[i])
-                
+
                 if i + 1 < len(text) and text[i + 1] in ' \t\n':
                     sentence = ''.join(current).strip()
                     if sentence:
@@ -139,18 +138,18 @@ class ChunkingService:
                     while i < len(text) and text[i] in ' \t\n':
                         i += 1
                     continue
-            
+
             elif text[i] == '\n' and i + 1 < len(text) and text[i + 1] == '\n':
                 sentence = ''.join(current).strip()
                 if sentence:
                     sentences.append(sentence)
                 current = []
-            
+
             i += 1
-        
+
         if current:
             sentence = ''.join(current).strip()
             if sentence:
                 sentences.append(sentence)
-        
+
         return sentences
