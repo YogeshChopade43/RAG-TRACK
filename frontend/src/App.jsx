@@ -32,10 +32,13 @@ function App() {
   const testLlmApiKey = useCallback(async () => {
     setApiKeyTest({ testing: true, valid: false, message: "" });
     try {
+      const headers = { "Content-Type": "application/json", ...getAuthHeaders() };
+      if (llmApiKey) {
+        headers["X-User-OpenRouter-Key"] = llmApiKey;
+      }
       const res = await fetch(`${API_BASE}/auth/test-api-key`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ api_key: llmApiKey }),
+        headers,
       });
       const data = await res.json();
       setApiKeyTest({ testing: false, valid: data.valid, message: data.message });

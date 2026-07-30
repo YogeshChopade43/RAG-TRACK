@@ -8,12 +8,15 @@ import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 import httpx
+
+from app.core.auth import verify_api_key
+from app.core.ratelimit import limiter
 
 from app.core.auth_service import (
     authenticate_user,
@@ -287,11 +290,6 @@ async def read_users_me(
     }
 
 
-class TestApiKeyRequest(BaseModel):
-    """Request model for testing OpenRouter API key."""
-    api_key: str = Field(..., min_length=10, max_length=200)
-
-
 class TestApiKeyResponse(BaseModel):
     """Response model for API key test."""
     valid: bool
@@ -300,13 +298,23 @@ class TestApiKeyResponse(BaseModel):
 
 
 @router.post("/test-api-key", response_model=TestApiKeyResponse)
-async def test_openrouter_api_key(request: TestApiKeyRequest):
-    """Test if an OpenRouter API key is valid."""
+@limiter.limit("5/minute")
+@limiter.limit("100/day")
+async def test_openrouter_api_key(
+    request: Request,
+    api_key: str = Header(..., alias="X-User-OpenRouter-Key"),
+    _: str = Depends(verify_api_key),
+):
+    """Test if an OpenRouter API key is valid.
+
+    Requires the user's OpenRouter API key in the X-User-OpenRouter-Key header
+    and the server API key in the X-API-Key header when authentication is enabled.
+    """
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
                 "https://openrouter.ai/api/v1/models",
-                headers={"Authorization": f"Bearer {request.api_key}"},
+                headers={"Authorization": f"Bearer {api_key}"},
             )
 
             if response.status_code == 200:

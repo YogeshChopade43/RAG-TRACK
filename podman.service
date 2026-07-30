@@ -1,0 +1,21 @@
+[Unit]
+Description=RAG-TRACK Podman Pod (API + PostgreSQL)
+Documentation=https://github.com/YogeshChopade43/RAG-TRACK
+After=podman.service network-online.target
+Wants=podman.service network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+EnvironmentFile=%h/.env.podman
+ExecStartPre=/usr/bin/podman pod rm -f ragtrack-pod 2>/dev/null || true
+ExecStart=/usr/bin/podman compose -f %h/RAG-TRACK/podman-compose.yml up -d
+ExecStop=/usr/bin/podman compose -f %h/RAG-TRACK/podman-compose.yml down
+ExecStopPost=/usr/bin/podman pod rm -f ragtrack-pod 2>/dev/null || true
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

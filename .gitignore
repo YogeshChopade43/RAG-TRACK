@@ -57,3 +57,11 @@ logs/
 test.py
 INFO.md
 .ruff_cache/
+
+# =========================
+# Podman / Container Runtime
+# =========================
+*.container.log
+podman-*.pid
+container-*.json
+.containers/
