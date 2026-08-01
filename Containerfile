@@ -41,8 +41,11 @@ ENV PYTHONUNBUFFERED=1
 # Copy application code
 COPY backend/ ./backend/
 
-# Copy environment defaults (runtime env vars override these via compose)
-COPY .env.example .env
+# Do NOT copy .env.example as .env — this would embed hardcoded localhost
+# URLs that override platform-provided environment variables (e.g., Render).
+# The app reads configuration from environment variables set by the platform
+# or docker-compose. An empty .env is created for pydantic-settings compatibility.
+RUN touch .env
 
 # Copy frontend build output (served as static files by FastAPI StaticFiles)
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
