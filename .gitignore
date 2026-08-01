@@ -54,7 +54,6 @@ traces/
 logs/
 .kilo/
 .kilocode/
-.github/
 test.py
 INFO.md
 .ruff_cache/
