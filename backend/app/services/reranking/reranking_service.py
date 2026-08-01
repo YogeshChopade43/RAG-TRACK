@@ -25,6 +25,33 @@ from app.services.embedding.shared_model import get_shared_rerank_model
 
 logger = logging.getLogger(__name__)
 
+# Keywords that signal document-overview intent
+# These are specific patterns that refer to the document as a whole,
+# NOT generic "about" which could be part of "tell me about X"
+_OVERVIEW_KEYWORDS = re.compile(
+    r"\b(this document|this file|this pdf|this doc|this resume|this cv|"
+    r"what is this|what's this|what is the document|what's the document|"
+    r"summar|summariz|overview|tl;dr|gist|main idea|main point|"
+    r"what is this document about|what is the document about|"
+    r"what is this file about|what is this doc about|"
+    r"what is this resume about|what is this cv about|"
+    r"what is this pdf about|"
+    r"tell me about this document|tell me about this file|"
+    r"tell me about this pdf|tell me about this doc"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# Keywords that signal section-level intent (e.g., "skills", "experience")
+_SECTION_KEYWORDS = re.compile(
+    r"\b(skill|technolog|experience|educat|project|certif|"
+    r"work histor|contact|email|mobile|github|kaggle|"
+    r"resnet|gesture|brain tumor|sentiment|hand gesture|"
+    r"cnc|alarm|predictive|automation|test case|selenium|playwright|"
+    r"ensemble|stacking|knn|svm|decision tree|data augmentation)\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class RankedItem:
@@ -38,6 +65,7 @@ class RankedItem:
     keyword_score: float
     original_score: float
     llm_relevance_score: Optional[float] = None
+    structural_score: float = 0.5
     # Metadata
     file_name: Optional[str] = None
     page_number: Optional[int] = None
@@ -139,51 +167,20 @@ class RerankingService:
         if not chunks:
             return []
 
-        # Extract query terms (lowercase, remove stopwords)
+        # Lightweight stopword removal (preserve technical terms/acronyms)
         stopwords = {
-            'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
-            'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-            'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have',
-            'had', 'what', 'said', 'each', 'which', 'she', 'do', 'how', 'their',
-            'if', 'up', 'out', 'many', 'then', 'them', 'these', 'so', 'some', 'her',
-            'would', 'make', 'like', 'into', 'him', 'time', 'two', 'more', 'go',
-            'no', 'way', 'could', 'my', 'than', 'first', 'been', 'call', 'who',
-            'oil', 'sit', 'now', 'find', 'down', 'day', 'did', 'get', 'come',
-            'made', 'may', 'part', 'over', 'new', 'sound', 'take', 'only', 'little',
-            'work', 'know', 'place', 'year', 'live', 'me', 'back', 'give', 'most',
-            'very', 'after', 'thing', 'our', 'just', 'name', 'good', 'sentence',
-            'man', 'think', 'say', 'great', 'where', 'help', 'through', 'much',
-            'before', 'line', 'right', 'too', 'mean', 'old', 'any', 'same', 'tell',
-            'boy', 'follow', 'came', 'want', 'show', 'also', 'around', 'form',
-            'three', 'small', 'set', 'put', 'end', 'does', 'another', 'well',
-            'large', 'must', 'big', 'even', 'such', 'because', 'turn', 'here',
-            'why', 'ask', 'went', 'men', 'read', 'need', 'land', 'different',
-            'home', 'us', 'move', 'try', 'kind', 'hand', 'picture', 'again',
-            'change', 'off', 'play', 'spell', 'air', 'away', 'animal', 'house',
-            'point', 'page', 'letter', 'mother', 'answer', 'found', 'study',
-            'still', 'learn', 'should', 'world', 'high', 'every', 'between',
-            'both', 'country', 'under', 'last', 'never', 'dear', 'word', 'while',
-            'below', 'above', 'along', 'among', 'whether', 'upon', 'either',
-            'neither', 'across', 'toward', 'towards', 'onto', 'within',
-            'without', 'behind', 'beyond', 'plus', 'minus', 'except', 'until',
-            'since', 'despite', 'unlike', 'including', 'regarding', 'concerning',
-            'considering', 'regardless', 'notwithstanding', 'according',
-            'furthermore', 'moreover', 'however', 'therefore', 'thus', 'hence',
-            'consequently', 'accordingly', 'meanwhile', 'otherwise', 'instead',
-            'likewise', 'similarly', 'namely', 'specifically', 'particularly',
-            'especially', 'indeed', 'actually', 'really', 'quite', 'rather',
-            'somewhat', 'slightly', 'barely', 'hardly', 'scarcely', 'almost',
-            'nearly', 'approximately', 'roughly', 'about', 'circa',
-            'versus', 'via', 'per', 'pro', 'con', 'anti', 'non', 'un', 'im', 'ir', 'il', 'dis', 'mis', 're', 'pre', 'post', 'sub',
-            'super', 'trans', 'inter', 'intra', 'extra', 'ultra', 'mega', 'micro',
-            'macro', 'multi', 'semi', 'quasi', 'pseudo', 'neo', 'counter',
-            'contra', 'vice', 'para', 'ortho', 'meta', 'epi', 'hypo',
-            'hyper', 'endo', 'exo', 'ecto', 'meso', 'thermo', 'hydro', 'geo',
-            'bio', 'psycho', 'socio', 'chrono', 'auto', 'hetero', 'homo', 'mono',
-            'di', 'tri', 'tetra', 'penta', 'hexa', 'hepta', 'octa', 'nona', 'deca',
+            'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+            'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+            'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+            'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these',
+            'those', 'it', 'its', 'as', 'by', 'from', 'about', 'into', 'than',
+            'then', 'so', 'if', 'out', 'up', 'down', 'here', 'there', 'when',
+            'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other',
+            'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'very',
+            'just', 'too', 'also', 'now',
         }
 
-        query_terms = [t for t in query.lower().split() if t not in stopwords and len(t) > 2]
+        query_terms = [t for t in query.lower().split() if t not in stopwords and len(t) >= 2]
 
         if not query_terms:
             # Fallback: use all terms
@@ -225,17 +222,79 @@ class RerankingService:
         return scores
 
     # ------------------------------------------------------------------
+    # Structural Metadata Scoring
+    # ------------------------------------------------------------------
+    def _compute_structural_scores(
+        self, query: str, chunks: list[dict[str, Any]]
+    ) -> list[float]:
+        """
+        Compute structural-position scores based on chunk metadata.
+
+        Boosts title/header blocks for overview queries and section-relevant
+        list items/paragraphs for targeted queries.
+
+        Args:
+            query: The search query
+            chunks: List of candidate chunks with optional structural metadata
+
+        Returns:
+            List of structural signal scores in [0, 1]
+        """
+        if not chunks:
+            return []
+
+        q = query.lower().strip()
+        is_overview = bool(_OVERVIEW_KEYWORDS.search(q))
+        section_topics = [t.lower() for t in _SECTION_KEYWORDS.findall(q)] if q else []
+
+        scores = []
+        for i, chunk in enumerate(chunks):
+            meta = chunk.get("metadata", {})
+            is_title = meta.get("is_title_block", False)
+            struct_type = meta.get("structural_type", "paragraph")
+            reading_order = meta.get("reading_order", 0)
+            heading_hierarchy = meta.get("heading_hierarchy", [])
+
+            score = 0.5  # neutral baseline
+
+            if is_overview:
+                if is_title:
+                    score = 1.0
+                elif struct_type == "heading":
+                    score = 0.8
+                # Earlier chunks get slight boost for overview questions
+                if reading_order == 0:
+                    score = max(score, 0.8)
+            else:
+                if section_topics:
+                    chunk_text_lower = chunk.get("chunk_text", chunk.get("content", "")).lower()
+                    heading_text = " ".join(heading_hierarchy).lower() if heading_hierarchy else ""
+                    combined = chunk_text_lower + " " + heading_text
+                    topic_match = any(kw in combined for kw in section_topics)
+                    if topic_match:
+                        if struct_type == "heading":
+                            score = 0.8
+                        elif struct_type == "list_item":
+                            score = 0.7
+                        else:
+                            score = 0.55
+
+            scores.append(round(score, 4))
+
+        return scores
+
+    # ------------------------------------------------------------------
     # Original Score Calibration
     # ------------------------------------------------------------------
     def _calibrate_original_scores(
         self, chunks: list[dict[str, Any]]
     ) -> list[float]:
         """
-        Calibrate and normalize original FAISS similarity scores.
+        Calibrate original FAISS similarity scores.
 
-        FAISS IndexFlatL2 returns L2 distances. The conversion to similarity
-        uses: score = 1 / (1 + distance). This function further normalizes
-        these scores relative to the batch.
+        FAISS scores are already in [0, 1] range via 1/(1+dist). We clamp
+        rather than min-max normalize to preserve magnitude differences
+        and avoid extreme 0.0 / 1.0 gaps on small candidate sets.
 
         Args:
             chunks: List of chunks with 'score' field
@@ -248,19 +307,9 @@ class RerankingService:
 
         original_scores = [c.get("score", 0.0) for c in chunks]
 
-        # Handle edge case where all scores are the same
-        max_score = max(original_scores)
-        min_score = min(original_scores)
-
-        if max_score == min_score:
-            return [0.5 for _ in original_scores]
-
-        # Min-max normalization to [0, 1]
-        calibrated = [
-            (s - min_score) / (max_score - min_score) for s in original_scores
-        ]
-
-        return calibrated
+        # Clamp to [0, 1] without aggressive min-max normalization
+        # This preserves the raw semantic similarity magnitude
+        return [max(0.0, min(1.0, s)) for s in original_scores]
 
     # ------------------------------------------------------------------
     # LLM-Based Relevance Scoring
@@ -362,10 +411,11 @@ class RerankingService:
 
         # Default weights
         default_weights = {
-            "semantic": 0.40,
-            "keyword": 0.25,
-            "original": 0.25,
-            "llm": 0.10,
+            "semantic": 0.35,
+            "keyword": 0.20,
+            "original": 0.20,
+            "llm": 0.05,
+            "structural": 0.20,
         }
 
         if weights:
@@ -378,13 +428,15 @@ class RerankingService:
         keyword_scores = self._compute_keyword_scores(query, chunks)
         original_scores = self._calibrate_original_scores(chunks)
         llm_scores = self._compute_llm_relevance_scores(query, chunks)
+        structural_scores = self._compute_structural_scores(query, chunks)
 
         # Normalize weights if LLM scoring is disabled
         if not self.use_llm_scoring:
-            total = w["semantic"] + w["keyword"] + w["original"]
+            total = w["semantic"] + w["keyword"] + w["original"] + w["structural"]
             w["semantic"] /= total
             w["keyword"] /= total
             w["original"] /= total
+            w["structural"] /= total
             w["llm"] = 0.0
 
         # Compute ensemble scores
@@ -394,12 +446,14 @@ class RerankingService:
             keyword = keyword_scores[i] if i < len(keyword_scores) else 0.0
             original = original_scores[i] if i < len(original_scores) else 0.0
             llm = llm_scores[i] if i < len(llm_scores) else 0.0
+            structural = structural_scores[i] if i < len(structural_scores) else 0.5
 
             final_score = (
                 w["semantic"] * semantic
                 + w["keyword"] * keyword
                 + w["original"] * original
                 + w["llm"] * llm
+                + w["structural"] * structural
             )
 
             ranked_item = RankedItem(
@@ -411,6 +465,7 @@ class RerankingService:
                 keyword_score=round(keyword, 4),
                 original_score=round(original, 4),
                 llm_relevance_score=round(llm, 4) if self.use_llm_scoring else None,
+                structural_score=round(structural, 4),
                 file_name=chunk.get("file_name"),
                 page_number=chunk.get("page_number"),
                 metadata=chunk.get("metadata", {}),
@@ -474,12 +529,14 @@ class RerankingService:
                     "keyword": 0.0,
                     "original": 0.0,
                     "llm": None,
+                    "structural": 0.0,
                 },
                 "weights_used": weights or {
-                    "semantic": 0.40,
-                    "keyword": 0.25,
-                    "original": 0.25,
-                    "llm": 0.10 if self.use_llm_scoring else 0.0,
+                    "semantic": 0.35,
+                    "keyword": 0.20,
+                    "original": 0.20,
+                    "llm": 0.05 if self.use_llm_scoring else 0.0,
+                    "structural": 0.20,
                 },
             }
 
@@ -514,6 +571,7 @@ class RerankingService:
             "keyword": sum(item.keyword_score for item in ranked_items) / len(ranked_items) if ranked_items else 0.0,
             "original": sum(item.original_score for item in ranked_items) / len(ranked_items) if ranked_items else 0.0,
             "llm": sum(item.llm_relevance_score for item in ranked_items if item.llm_relevance_score) / len([i for i in ranked_items if i.llm_relevance_score]) if any(i.llm_relevance_score for i in ranked_items) else None,
+            "structural": sum(item.structural_score for item in ranked_items) / len(ranked_items) if ranked_items else 0.0,
         }
 
         result = {
@@ -522,10 +580,11 @@ class RerankingService:
             "ranking_summary": ranking_summary,
             "signal_scores": signal_scores,
             "weights_used": weights or {
-                "semantic": 0.40,
-                "keyword": 0.25,
-                "original": 0.25,
-                "llm": 0.10 if self.use_llm_scoring else 0.0,
+                "semantic": 0.35,
+                "keyword": 0.20,
+                "original": 0.20,
+                "llm": 0.05 if self.use_llm_scoring else 0.0,
+                "structural": 0.20,
             },
         }
 

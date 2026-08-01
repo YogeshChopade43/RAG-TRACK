@@ -66,10 +66,6 @@ sys.modules['absl'] = MagicMock()
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
     """Clean environment variables that interfere with settings."""
-    # Remove Ollama environment variables that cause validation errors
-    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
-
     # Set test environment
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")

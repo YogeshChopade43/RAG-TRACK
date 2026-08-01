@@ -1,8 +1,19 @@
 import logging
+import re
 
 from app.core.config import CHUNK_OVERLAP, CHUNK_SIZE
 
 logger = logging.getLogger(__name__)
+
+# Patterns that signal structural document elements
+_LIST_ITEM_RE = re.compile(r"^\s*([•\u2022\u25E6\-\u2023\u25C7\u25C8\u2022]|\d+\.|\d+\))\s+")
+_HEADING_KEYWORDS = re.compile(
+    r"\b(Experience|Education|Skills|Projects|Certifications|Summary|Profile|"
+    r"Contact|Resume|Work History|Expleo|Portfolio|Kaggle|Github|Email|Mobile|"
+    r"Sentiment Analysis|ResNet|Brain Tumor|Hand Gesture|KNN|SVM|Decision Tree|"
+    r"RAG|Data Augmentation|Test Cases|Automation)\b",
+    re.IGNORECASE,
+)
 
 
 class ChunkingService:
@@ -24,12 +35,22 @@ class ChunkingService:
 
         chunks = []
         chunk_counter = 1
+        reading_order = 0
 
-        for page in pages:
+        for page_idx, page in enumerate(pages):
             page_number = page["page_number"]
             text = page["text"]
 
-            page_chunks = self._chunk_page(text, document_id, fname, page_number, chunk_counter)
+            page_chunks = self._chunk_page(
+                text, document_id, fname, page_number, chunk_counter
+            )
+            for pc in page_chunks:
+                pc["is_title_block"] = page_idx == 0 and reading_order == 0
+                pc["reading_order"] = reading_order
+                pc["structural_type"] = self._classify_chunk(pc["chunk_text"])
+                pc["heading_hierarchy"] = self._extract_headings(text)
+                reading_order += 1
+
             chunks.extend(page_chunks)
             chunk_counter += len(page_chunks)
 
@@ -38,6 +59,46 @@ class ChunkingService:
             logger.debug(f"Sample chunk: {chunks[0]}")
 
         return chunks
+
+    @staticmethod
+    def _classify_chunk(text: str) -> str:
+        """Classify a chunk by its dominant structural pattern."""
+        stripped = text.strip()
+        if not stripped:
+            return "paragraph"
+
+        lines = [l for l in stripped.splitlines() if l.strip()]
+        if not lines:
+            return "paragraph"
+
+        # Title / header block: short, no terminal punctuation, looks like a title
+        first_line = lines[0].strip()
+        if len(first_line) <= 100 and not first_line.endswith((".", "!", "?")):
+            if _HEADING_KEYWORDS.search(first_line) and len(first_line.split()) <= 15:
+                return "heading"
+
+        # List item: starts with bullet or numbered marker
+        if _LIST_ITEM_RE.match(stripped):
+            return "list_item"
+
+        # Multi-line block where most lines are list items
+        list_count = sum(1 for l in lines if _LIST_ITEM_RE.match(l))
+        if list_count > 0 and list_count >= len(lines) * 0.5:
+            return "list_item"
+
+        return "paragraph"
+
+    @staticmethod
+    def _extract_headings(text: str) -> list[str]:
+        """Extract heading-like lines from page text for hierarchy context."""
+        headings = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if _HEADING_KEYWORDS.search(stripped) and len(stripped) <= 60:
+                headings.append(stripped)
+        return headings
 
     def _chunk_page(self, text: str, document_id: str, fname: str, page_number: int, start_counter: int) -> list:
         chunks = []

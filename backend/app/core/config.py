@@ -4,14 +4,42 @@ Centralized configuration for RAG-TRACK application.
 Uses pydantic-settings for environment-based configuration with validation.
 """
 
+import json
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    BeforeValidator,
+    Field,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings.sources.types import NoDecode
 
 # Determine project root (parent of backend directory)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+
+
+def parse_str_or_list(v: str | list) -> list[str]:
+    """Parse a string value into a list of strings.
+
+    Handles both JSON array strings (e.g. ``["a","b"]``) and
+    comma-separated values (e.g. ``a,b,c``).
+    """
+    if isinstance(v, str):
+        v = v.strip()
+        if v.startswith("["):
+            try:
+                result = json.loads(v)
+                if isinstance(result, list):
+                    return [str(item).strip() for item in result if str(item).strip()]
+            except (json.JSONDecodeError, ValueError):
+                pass
+        return [item.strip() for item in v.split(",") if item.strip()]
+    if isinstance(v, list):
+        return [str(item).strip() for item in v if str(item).strip()]
+    return []
 
 
 class Settings(BaseSettings):
@@ -21,6 +49,7 @@ class Settings(BaseSettings):
         env_file=str(PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # Application
@@ -46,10 +75,9 @@ class Settings(BaseSettings):
                     "Set a strong SECRET_KEY in your environment."
                 )
 
-            if not self.use_local_llm and not self.openrouter_api_key:
+            if not self.openrouter_api_key:
                 raise ValueError(
-                    "Either OPENROUTER_API_KEY must be set or USE_LOCAL_LLM=true "
-                    "in production."
+                    "OPENROUTER_API_KEY must be set."
                 )
 
             if not self.database_url:
@@ -63,18 +91,10 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # CORS - configurable via environment
-    allowed_origins: list[str] = Field(
+    allowed_origins: Annotated[list[str], NoDecode, BeforeValidator(parse_str_or_list)] = Field(
         default=["http://localhost:5173", "http://127.0.0.1:5173"],
         validation_alias="ALLOWED_ORIGINS",
     )
-
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def parse_origins(cls, v: str) -> list[str]:
-        """Parse comma-separated origins into a list."""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
 
     # Rate Limiting
     rate_limit_enabled: bool = True
@@ -82,7 +102,7 @@ class Settings(BaseSettings):
     rate_limit_burst: int = 10
 
     # File Upload
-    allowed_extensions: list[str] = Field(default=["pdf", "txt"])
+    allowed_extensions: Annotated[list[str], NoDecode, BeforeValidator(parse_str_or_list)] = Field(default=["pdf", "txt"])
     max_file_size_mb: int = 10
     max_file_size_bytes: int = Field(default=10 * 1024 * 1024)
 
@@ -114,10 +134,11 @@ class Settings(BaseSettings):
     rerank_top_k: int = 20
     rerank_weights: dict = Field(
         default_factory=lambda: {
-            "semantic": 0.40,
-            "keyword": 0.25,
-            "original": 0.25,
-            "llm": 0.10,
+            "semantic": 0.35,
+            "keyword": 0.20,
+            "original": 0.20,
+            "llm": 0.05,
+            "structural": 0.20,
         }
     )
 
@@ -131,9 +152,6 @@ class Settings(BaseSettings):
     )
 
     # LLM
-    use_local_llm: bool = Field(
-        default=False, validation_alias="USE_LOCAL_LLM"
-    )
     openrouter_api_key: Optional[str] = Field(
         default=None, validation_alias="OPENROUTER_API_KEY"
     )
@@ -177,10 +195,6 @@ class Settings(BaseSettings):
     # Observability
     trace_enabled: bool = True
     trace_storage_path: str = "backend/traces"
-
-    # Ollama (for local LLM support)
-    ollama_base_url: Optional[str] = Field(default=None, validation_alias="OLLAMA_BASE_URL")
-    ollama_model: Optional[str] = Field(default=None, validation_alias="OLLAMA_MODEL")
 
     # Logging
     log_level: str = "INFO"

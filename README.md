@@ -121,7 +121,7 @@ Each stage emits <b>structured metadata and traces</b> to support debugging and 
   <li><b>Server:</b> Uvicorn with standard workers</li>
   <li><b>Vector Database:</b> FAISS (CPU)</li>
   <li><b>Embeddings:</b> Sentence-Transformers (all-MiniLM-L6-v2)</li>
-  <li><b>LLM Providers:</b> OpenRouter API / Local LLM (Ollama-compatible)</li>
+  <li><b>LLM Providers:</b> OpenRouter API</li>
   <li><b>Document Parsing:</b> pdfplumber, PyPDF, Pillow</li>
   <li><b>Rate Limiting:</b> SlowAPI</li>
   <li><b>Authentication:</b> API Key middleware</li>
@@ -135,11 +135,17 @@ Each stage emits <b>structured metadata and traces</b> to support debugging and 
   <li><b>Components:</b> ChatInterface, AnswerDisplay, HeroSection, PremiumFileUpload</li>
 </ul>
 
-<h3>DevOps & Quality</h3>
+<h3>DevOps &amp; Quality</h3>
 <ul>
-  <li>Docker & Docker Compose</li>
+  <li>Docker &amp; Docker Compose (multi-stage Containerfile)</li>
+  <li>Podman &amp; podman-compose compatible</li>
+  <li>Non-root container user for security</li>
+  <li>PostgreSQL for auth database</li>
+  <li>FAISS vector store (persistent volumes)</li>
+  <li>Automatic DB migrations on startup</li>
+  <li>Health checks &amp; structured logging</li>
   <li>pytest with coverage reporting</li>
-  <li>Ruff (linting) & MyPy (type checking)</li>
+  <li>Ruff (linting) &amp; MyPy (type checking)</li>
   <li>Environment-based configuration (.env)</li>
 </ul>
 
@@ -255,15 +261,21 @@ RAG-TRACK/
 │   ├── package.json
 │   └── vite.config.js
 │
-├── data/                      # Runtime data directory
+├── data/                      # Runtime data directory (mounted as volume)
 │   ├── raw/                   # Original uploaded files
 │   ├── parsed/                # Parsed text output
 │   ├── embeddings/            # Generated embeddings
-│   └── vector_store/          # FAISS index storage
+│   ├── vector_store/          # FAISS index storage
+│   └── traces/                # Query trace storage
 │
 ├── .env.example               # Configuration template
 ├── .gitignore
-├── docker-compose.yml         # Multi-container setup
+├── alembic.ini                # Database migration config
+├── Containerfile              # Multi-stage Docker image build
+├── docker-entrypoint.sh       # Container entrypoint (migrations + app start)
+├── docker-compose.yml         # Multi-container setup (API + PostgreSQL)
+├── podman-compose.yml         # Podman-compatible compose (optional)
+├── Makefile                   # Build & run targets (Docker/Podman)
 ├── requirements.txt           # Python dependencies
 ├── ruff.toml                  # Linting configuration
 ├── mypy.ini                   # Type checking configuration
@@ -279,7 +291,7 @@ RAG-TRACK/
 <ul>
   <li>Python 3.11+</li>
   <li>Node.js 18+ (for frontend)</li>
-  <li>OpenRouter API key (or local LLM setup)</li>
+  <li>OpenRouter API key</li>
 </ul>
 
 <h3>Backend Setup</h3>
@@ -302,16 +314,7 @@ copy .env.example .env   # Windows
 
 # Choose your LLM provider:
 
-## Option 1: Cloud API (OpenRouter)
-# Edit .env and add your OPENROUTER_API_KEY
-
-## Option 2: Local LLM (Ollama - completely free)
-# Uncomment Ollama settings in .env:
-# USE_LOCAL_LLM=true
-# OLLAMA_BASE_URL=http://localhost:11434
-# OLLAMA_MODEL=llama3.2:1b
-# Then install Ollama and pull a model:
-# ollama pull llama3.2:1b
+## Configure your OpenRouter API key in .env
 
 # Run the server
 cd backend
@@ -336,12 +339,31 @@ Frontend available at: <code>http://localhost:5173</code>
 
 <h3>Docker Deployment</h3>
 <pre>
-# Build and run with docker-compose
-docker-compose up -d
+# 1. Configure environment
+cp .env.example .env   # Edit to set OPENROUTER_API_KEY, SECRET_KEY, etc.
 
-# Or build manually
-docker build -f backend/Dockerfile -t rag-track .
-docker run -p 8000:8000 --env-file .env rag-track
+# 2. Build and run with Docker Compose
+docker compose up -d --build
+
+# 3. Run database migrations (optional — handled automatically on next restart)
+docker compose run --rm api alembic upgrade head
+
+# Or build the image manually
+docker build -f Containerfile -t ragtrack .
+docker run -p 8000:8000 --env-file .env ragtrack
+
+# API:    http://localhost:8000
+# Docs:   http://localhost:8000/docs
+# DB:     localhost:5432 (postgres:ragtrack)
+</pre>
+
+<h3>Podman Deployment</h3>
+<pre>
+# Podman compose works the same way (no pod isolation by default)
+podman compose -f podman-compose.yml up -d --build
+
+# Or via the helper script (auto-detects Docker or Podman)
+./run-podman.sh up
 </pre>
 
 <hr/>
@@ -361,9 +383,8 @@ Copy <code>.env.example</code> to <code>.env</code> and configure:
 <tr><td>Files</td><td><code>MAX_FILE_SIZE_MB</code></td><td>Maximum upload file size</td></tr>
 <tr><td>Chunking</td><td><code>CHUNK_SIZE</code>, <code>CHUNK_OVERLAP</code></td><td>Chunking parameters</td></tr>
 <tr><td>Embedding</td><td><code>EMBEDDING_MODEL</code></td><td>Sentence-transformers model</td></tr>
-<tr><td>LLM (Cloud)</td><td><code>OPENROUTER_API_KEY</code>, <code>LLM_MODEL</code></td><td>OpenRouter API config</td></tr>
-<tr><td>LLM (Local)</td><td><code>USE_LOCAL_LLM</code>, <code>OLLAMA_BASE_URL</code>, <code>OLLAMA_MODEL</code></td><td>Ollama local LLM config</td></tr>
-<tr><td>Retrieval</td><td><code>TOP_K_RETRIEVAL</code></td><td>Number of chunks to retrieve</td></tr>
+<tr><td>LLM</td><td><code>OPENROUTER_API_KEY</code>, <code>LLM_MODEL</code></td><td>OpenRouter API config</td></tr>
+ <tr><td>Retrieval</td><td><code>TOP_K_RETRIEVAL</code></td><td>Number of chunks to retrieve</td></tr>
 <tr><td>Observability</td><td><code>TRACE_ENABLED</code></td><td>Enable query tracing</td></tr>
 </table>
 
@@ -502,34 +523,32 @@ npm run dev
 # UI: http://localhost:5173
 </pre>
 
+<h3>Quick Start with Docker</h3>
+<pre>
+# 1. Clone the repo
+git clone https://github.com/YogeshChopade43/RAG-TRACK.git
+cd RAG-TRACK
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env: set SECRET_KEY, OPENROUTER_API_KEY, DB_PASSWORD
+
+# 3. Build and start (API + PostgreSQL + frontend in one container)
+docker compose up -d --build
+# API:    http://localhost:8000
+# Docs:   http://localhost:8000/docs
+</pre>
+
 <h3>Configure LLM Provider</h3>
 
 <p>
 Edit the <code>.env</code> file before starting the backend.
 </p>
 
-<p><strong>Option A: Cloud OpenRouter API</strong></p>
+<p><strong>OpenRouter API Key</strong></p>
 <pre>
 OPENROUTER_API_KEY=your_key_here
 LLM_MODEL=google/gemma-4-26b-a4b-it:free
-USE_LOCAL_LLM=false
-</pre>
-
-<p><strong>Option B: Local Ollama (free, runs on CPU)</strong></p>
-<pre>
-USE_LOCAL_LLM=true
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-r1:1.5b
-</pre>
-
-<p>
-For local LLM, make sure Ollama is installed and the model is pulled:
-</p>
-
-<pre>
-# Install Ollama then run:
-ollama pull deepseek-r1:1.5b
-ollama serve
 </pre>
 
 <h3>Development Commands</h3>
@@ -557,12 +576,47 @@ mypy backend/
 <h3>Docker</h3>
 
 <pre>
-# Build and run with docker-compose
-docker-compose up -d
+# 1. Configure environment
+cp .env.example .env
+# Edit .env: set SECRET_KEY, OPENROUTER_API_KEY, DB_PASSWORD
 
-# Or build manually
-docker build -f backend/Dockerfile -t rag-track .
-docker run -p 8000:8000 --env-file .env rag-track
+# 2. Build and run with Docker Compose
+docker compose up -d --build
+
+# 3. View logs
+docker compose logs -f
+
+# 4. Run database migrations (optional — automatic on restart)
+docker compose run --rm api alembic upgrade head
+
+# API:    http://localhost:8000
+# Docs:   http://localhost:8000/docs
+# DB:     localhost:5432 (postgres:ragtrack)
+
+# Or build the image manually
+docker build -f Containerfile -t ragtrack .
+docker run -p 8000:8000 --env-file .env ragtrack
+</pre>
+
+<h3>Makefile (Docker &amp; Podman)</h3>
+<pre>
+# Start containers
+make up        # or: make dc-up
+
+# Stop containers
+make down       # or: make dc-down
+
+# Build image
+make build      # or: make dc-build
+
+# View logs
+make logs       # or: make dc-logs
+
+# Run database migrations
+make migrate
+
+# Full list of targets
+make help
 </pre>
 
 <hr/>

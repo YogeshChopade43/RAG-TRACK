@@ -9,8 +9,18 @@ class GenerationService:
         self.llm = get_llm_service()
 
     def build_context(self, retrieved_chunks):
-        # combine top-k chunks into readable context
-        return "\n\n".join(chunk["chunk_text"] for chunk in retrieved_chunks)
+        # combine top-k chunks into readable context with metadata
+        parts = []
+        for chunk in retrieved_chunks:
+            text = chunk.get("chunk_text") or chunk.get("content", "")
+            file_name = chunk.get("file_name", "document")
+            page = chunk.get("page_number")
+            if page:
+                header = f"[{file_name} p.{page}]"
+            else:
+                header = f"[{file_name}]"
+            parts.append(f"{header}\n{text}")
+        return "\n\n".join(parts)
 
     def _build_prompts(self, question: str, retrieved_chunks: list, is_overview: bool = False):
         """Build system and user prompts."""
@@ -32,7 +42,7 @@ class GenerationService:
             return text
 
         text = text.strip()
-        text = re.sub(r'^(?i)answer\s*:\s*', '', text).strip()
+        text = re.sub(r'(?i)^answer\s*:\s*', '', text).strip()
 
         # Collapse exact repeated full-text outputs like repeated answer echoes.
         for repeat in range(5, 1, -1):
@@ -50,9 +60,9 @@ class GenerationService:
 
         return "\n\n".join(cleaned_paragraphs)
 
-    def generate(self, question: str, retrieved_chunks: list, is_overview: bool = False, api_key: str = None):
+    def generate(self, question: str, retrieved_chunks: list, is_overview: bool = False, api_key: str = None, model: str = None):
         system_prompt, user_prompt = self._build_prompts(
             question, retrieved_chunks, is_overview=is_overview
         )
-        raw_answer = self.llm.chat(system_prompt, user_prompt, api_key=api_key)
+        raw_answer = self.llm.chat(system_prompt, user_prompt, api_key=api_key, model=model)
         return self._normalize_answer(raw_answer)

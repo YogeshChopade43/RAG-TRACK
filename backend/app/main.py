@@ -116,8 +116,11 @@ app.include_router(retrieve.router, prefix="/query", tags=["Query"])
 
 
 @app.get("/")
-def root():
-    """Root endpoint with application info."""
+async def root(request: Request):
+    """Root endpoint - serves frontend or returns app info."""
+    frontend_dist = Path("/app/frontend/dist")
+    if frontend_dist.exists():
+        return await StaticFiles(directory=str(frontend_dist), html=True).get_response("index.html", request.scope)
     return {
         "name": settings.app_name,
         "version": "1.0.0",
@@ -203,8 +206,9 @@ if frontend_dist.exists():
     )
 
     @app.get("/{full_path:path}")
-    def serve_frontend(request: Request, full_path: str):
+    async def serve_frontend(request: Request, full_path: str):
+        """Serve frontend for client-side routes."""
         file_path = frontend_dist / full_path
         if full_path and file_path.exists() and file_path.is_file():
-            return StaticFiles(directory=str(frontend_dist)).get_response(full_path, request.scope)
-        return StaticFiles(directory=str(frontend_dist), html=True).get_response("index.html", request.scope)
+            return await StaticFiles(directory=str(frontend_dist)).get_response(full_path, request.scope)
+        return await StaticFiles(directory=str(frontend_dist), html=True).get_response("index.html", request.scope)

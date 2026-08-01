@@ -8,7 +8,7 @@ import "./App.css";
 
 function App() {
   const { getAuthHeaders, logout } = useAuth();
-  const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+  const API_BASE = import.meta.env.VITE_API_URL || "";
   const [file, setFile] = useState(null);
   const [documentId, setDocumentId] = useState(null);
   const [question, setQuestion] = useState("");
@@ -17,6 +17,7 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [llmApiKey, setLlmApiKey] = useState(() => sessionStorage.getItem("llm_api_key") || "");
+  const [llmModel, setLlmModel] = useState(() => sessionStorage.getItem("llm_model") || "");
   const [apiKeyTest, setApiKeyTest] = useState({ testing: false, valid: false, message: "" });
   const apiKeyReady = !!llmApiKey && apiKeyTest.valid;
 
@@ -35,6 +36,9 @@ function App() {
       const headers = { "Content-Type": "application/json", ...getAuthHeaders() };
       if (llmApiKey) {
         headers["X-User-OpenRouter-Key"] = llmApiKey;
+      }
+      if (llmModel) {
+        headers["X-User-OpenRouter-Model"] = llmModel;
       }
       const res = await fetch(`${API_BASE}/auth/test-api-key`, {
         method: "POST",
@@ -60,12 +64,13 @@ function App() {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const uploadRes = await fetch(`${API_BASE}/ingest/`, {
+      const uploadRes = await fetch(`${API_BASE}/ingest`, {
         method: "POST",
         body: formData,
         headers: {
           ...getAuthHeaders(),
           ...(llmApiKey ? { "X-User-OpenRouter-Key": llmApiKey } : {}),
+          ...(llmModel ? { "X-User-OpenRouter-Model": llmModel } : {}),
         },
       });
 
@@ -115,6 +120,7 @@ function App() {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
           ...(llmApiKey ? { "X-User-OpenRouter-Key": llmApiKey } : {}),
+          ...(llmModel ? { "X-User-OpenRouter-Model": llmModel } : {}),
         },
         body: JSON.stringify({
           document_id: documentId,
@@ -157,7 +163,12 @@ const answer = queryData.answer || "";
     } else {
       sessionStorage.removeItem("llm_api_key");
     }
-  }, [llmApiKey]);
+    if (llmModel) {
+      sessionStorage.setItem("llm_model", llmModel);
+    } else {
+      sessionStorage.removeItem("llm_model");
+    }
+  }, [llmApiKey, llmModel]);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -227,9 +238,17 @@ const answer = queryData.answer || "";
                 className="llm-input-large"
                 disabled={apiKeyTest.testing}
               />
+              <input
+                type="text"
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                placeholder="e.g. meta-llama/llama-3.1-8b-instruct:free"
+                className="llm-input-large"
+                disabled={apiKeyTest.testing}
+              />
               <button
                 onClick={testLlmApiKey}
-                disabled={apiKeyTest.testing || !llmApiKey}
+                disabled={apiKeyTest.testing || !llmApiKey || !llmModel}
                 className="btn btn-primary llm-test-btn-large"
               >
                 {apiKeyTest.testing ? "Testing..." : "Test & Continue"}

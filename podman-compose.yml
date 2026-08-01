@@ -1,11 +1,9 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: ragtrack
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-ragtrack_password}"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ragtrack_password}
       POSTGRES_DB: ragtrack
     volumes:
       - ragtrack-db-data:/var/lib/postgresql/data
@@ -15,50 +13,39 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    stop_grace_period: 30s
-    pod: ragtrack-pod
 
   api:
     build:
       context: .
       dockerfile: Containerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    image: ragtrack:latest
+    ports:
+      - "8000:8000"
     environment:
-      ENVIRONMENT: production
-      SECRET_KEY: "${SECRET_KEY}"
-      API_KEY: "${API_KEY:-}"
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}"
-      VITE_API_URL: "${VITE_API_URL:-http://localhost:8000}"
-      RATE_LIMIT_ENABLED: "${RATE_LIMIT_ENABLED:-true}"
-      RATE_LIMIT_PER_MINUTE: "${RATE_LIMIT_PER_MINUTE:-30}"
-      USE_LOCAL_LLM: "${USE_LOCAL_LLM:-false}"
-      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
-      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-}"
-      OLLAMA_MODEL: "${OLLAMA_MODEL:-}"
-      LOG_LEVEL: INFO
-      DATABASE_URL: "postgresql://ragtrack:${DB_PASSWORD:-ragtrack_password}@127.0.0.1:5432/ragtrack"
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - API_KEY=${API_KEY:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:5173,http://127.0.0.1:5173}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-30}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - LLM_MODEL=${LLM_MODEL:-google/gemma-4-26b-a4b-it:free}
+      - DATABASE_URL=postgresql://ragtrack:${DB_PASSWORD:-ragtrack_password}@db:5432/ragtrack
     volumes:
       - ragtrack-data:/app/data
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     restart: unless-stopped
-    stop_grace_period: 10s
-    pod: ragtrack-pod
-    ports:
-      - "8000:8000"
-
-pods:
-  ragtrack-pod:
-    port_mappings:
-      - "8000:8000"
-    sharing: network
 
 volumes:
-  ragtrack-db-data:
   ragtrack-data:
+    driver: local
+  ragtrack-db-data:
+    driver: local

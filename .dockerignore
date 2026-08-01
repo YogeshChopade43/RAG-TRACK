@@ -12,13 +12,14 @@ venv/
 .venv/
 ENV/
 
-# IDE
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
+*.code-workspace
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -26,27 +27,46 @@ Thumbs.db
 .git/
 .gitignore
 
-# Testing
+# Testing / Coverage
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
+backend/.pytest_cache/
+backend/htmlcov/
+backend/.coverage
 
 # Logs
 *.log
 logs/
 
-# Data (keep directory but ignore contents)
+# Runtime data (keep directory structure empty)
 data/
-# Exception: don't ignore subdirectories
-!data/.gitkeep
+backend/data/
 
-# CI/CD
-.github/
-
-# Documentation
-*.md
-LICENSE
-
-# Environment
+# Environment files (only .env.example is needed in the image)
 .env
 .env.local
+.env.podman
+.env.podman.example
+
+# Podman / Docker runtime files
+podman.service
+run-podman.sh
+
+# Documentation & misc scripts
+*.md
+LICENSE
+Ideas.md
+clean.py
+check_db.py
+
+# Frontend dev artifacts
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+
+# CI / Kilo
+.github/
+.kilo/
+.kilocode/

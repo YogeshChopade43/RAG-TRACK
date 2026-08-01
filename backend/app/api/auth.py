@@ -303,38 +303,53 @@ class TestApiKeyResponse(BaseModel):
 async def test_openrouter_api_key(
     request: Request,
     api_key: str = Header(..., alias="X-User-OpenRouter-Key"),
+    model: str = Header(..., alias="X-User-OpenRouter-Model"),
     _: str = Depends(verify_api_key),
 ):
-    """Test if an OpenRouter API key is valid.
+    """Test if an OpenRouter API key and model are valid.
 
     Requires the user's OpenRouter API key in the X-User-OpenRouter-Key header
-    and the server API key in the X-API-Key header when authentication is enabled.
+    and model name in X-User-OpenRouter-Model header.
+    Makes an actual chat completion call to validate both.
     """
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(
-                "https://openrouter.ai/api/v1/models",
-                headers={"Authorization": f"Bearer {api_key}"},
+            response = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "http://localhost:8000",
+                    "X-Title": "RAG-TRACK",
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": "Hello"}],
+                    "max_tokens": 1,
+                },
             )
 
             if response.status_code == 200:
-                data = response.json()
-                models = data.get("data", [])
-                model_names = [m.get("id", "") for m in models[:5]]
                 return TestApiKeyResponse(
                     valid=True,
-                    message="API key is valid",
-                    model=model_names[0] if model_names else None,
+                    message="API key and model are valid",
+                    model=model,
                 )
             elif response.status_code == 401:
                 return TestApiKeyResponse(
                     valid=False,
                     message="Invalid API key",
                 )
-            else:
+            elif response.status_code == 404:
                 return TestApiKeyResponse(
                     valid=False,
-                    message=f"OpenRouter returned status {response.status_code}",
+                    message=f"Model not found: {model}",
+                )
+            else:
+                error_data = response.json()
+                return TestApiKeyResponse(
+                    valid=False,
+                    message=f"OpenRouter error: {error_data.get('error', {}).get('message', response.text)}",
                 )
     except httpx.TimeoutException:
         return TestApiKeyResponse(

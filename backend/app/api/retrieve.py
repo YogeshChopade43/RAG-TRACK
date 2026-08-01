@@ -262,6 +262,10 @@ async def query_documents(
     base_top_k = query_request.top_k or settings.top_k_retrieval
     top_k = base_top_k
 
+    # Per-user LLM credentials (session-only, not stored in DB)
+    user_api_key = request.headers.get("X-User-OpenRouter-Key", "").strip() or None
+    user_model = request.headers.get("X-User-OpenRouter-Model", "").strip() or None
+
     # Detect document-overview / summary intent
     is_overview = rewriter.is_overview_question(query_request.question)
     if is_overview:
@@ -287,14 +291,15 @@ async def query_documents(
     trace_service = TraceService()
     trace_id = trace_service.start_trace(query_request.question)
 
-    # Per-user OpenRouter API key (session-only, not stored in DB)
+    # Per-user LLM credentials (session-only, not stored in DB)
     user_api_key = request.headers.get("X-User-OpenRouter-Key", "").strip() or None
+    user_model = request.headers.get("X-User-OpenRouter-Model", "").strip() or None
 
     try:
         # Step 1: Decompose query (fallback to original question on failure)
         trace_service.start_timer("decomposition")
         try:
-            sub_queries = decomposer.decompose(query_request.question)
+            sub_queries = decomposer.decompose(query_request.question, api_key=user_api_key, model=user_model)
         except Exception as e:
             logger.warning(f"Query decomposition failed, using original question: {e}")
             sub_queries = [query_request.question]
@@ -313,7 +318,7 @@ async def query_documents(
             # Step 2a: Rewrite (fallback to sub-query on failure)
             trace_service.start_timer("rewrite")
             try:
-                rewritten_query = rewriter.rewrite(q)
+                rewritten_query = rewriter.rewrite(q, api_key=user_api_key, model=user_model)
             except Exception as e:
                 logger.warning(f"Query rewrite failed for '{q}', using original: {e}")
                 rewritten_query = q
@@ -323,7 +328,7 @@ async def query_documents(
             # Step 2b: Multi-query expansion (fallback to just rewritten query on failure)
             try:
                 expanded_queries = multi_query.generate_queries(
-                    rewritten_query, total_sub_queries=len(sub_queries)
+                    rewritten_query, total_sub_queries=len(sub_queries), api_key=user_api_key, model=user_model
                 )
             except Exception as e:
                 logger.warning(f"Multi-query expansion failed, using single query: {e}")
@@ -414,10 +419,9 @@ async def query_documents(
         # Step 6: Generate answer
         trace_service.start_timer("generation")
 
-        llm_provider = "ollama" if settings.use_local_llm else "openrouter"
         trace_service.set_llm_settings(
-            provider=llm_provider,
-            model=settings.llm_model,
+            provider="openrouter",
+            model=user_model or settings.llm_model,
             temperature=settings.llm_temperature,
             max_tokens=settings.llm_max_tokens,
             timeout_seconds=settings.llm_timeout_seconds,
@@ -430,6 +434,7 @@ async def query_documents(
                 retrieved_chunks,
                 is_overview=is_overview,
                 api_key=user_api_key,
+                model=user_model,
             )
             trace_service.set_response(answer)
         except Exception as e:

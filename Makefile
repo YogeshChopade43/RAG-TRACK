@@ -1,43 +1,63 @@
-.PHONY: help up down restart build logs status clean dev test test-unit lint typecheck
+.PHONY: help up down restart build logs status clean dev test test-unit lint typecheck format \
+  dc-up dc-down dc-build dc-logs dc-status dc-migrate migrate \
+  install-podman setup
 
 PROJECT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-ENV_FILE := $(PROJECT_DIR).env.podman
-COMPOSE := podman compose -f $(PROJECT_DIR)podman-compose.yml
+ENV_FILE := $(PROJECT_DIR).env
+COMPOSE_FILE := $(PROJECT_DIR)docker-compose.yml
 
-export $(shell grep -v '^#' $(ENV_FILE) | xargs 2>/dev/null || true)
+# Detect container runtime: prefer Docker, fall back to Podman
+ifneq ($(shell command -v docker 2> /dev/null),)
+  COMPOSE := docker compose -f $(COMPOSE_FILE)
+else ifneq ($(shell command -v podman 2> /dev/null),)
+  COMPOSE := podman compose -f $(COMPOSE_FILE)
+else
+  COMPOSE := echo "Neither docker nor podman found" && exit 1
+endif
+
+# Export .env values for docker-compose variable substitution
+ifneq ("$(wildcard $(ENV_FILE))","")
+  export $(shell grep -v '^#' $(ENV_FILE) | xargs 2>/dev/null || true)
+endif
+
+# ─── Docker Compose Targets ───────────────────────────────────────────────
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-up: ## Start the RAG-TRACK containers (build if needed)
-	podman pod rm -f ragtrack-pod 2>/dev/null || true
+dc-up: ## Start the RAG-TRACK containers (build if needed) via Docker/Podman Compose
 	$(COMPOSE) up -d --build
 
-down: ## Stop and remove all containers and the pod
-	$(COMPOSE) down 2>/dev/null || true
-	podman pod rm -f ragtrack-pod 2>/dev/null || true
+dc-down: ## Stop and remove all containers and networks
+	$(COMPOSE) down
 
-restart: down up ## Rebuild and restart all containers
+dc-build: ## Build the ragtrack image without starting
+	$(COMPOSE) build
 
-build: ## Build the ragtrack image without starting
-	podman build -t ragtrack:latest -f Containerfile $(PROJECT_DIR)
-
-logs: ## Stream container logs
+dc-logs: ## Stream container logs
 	$(COMPOSE) logs -f
 
-status: ## Show pod and container status
-	@echo "=== Pod Status ==="
-	podman pod inspect ragtrack-pod 2>/dev/null || echo "Pod 'ragtrack-pod' is not running"
-	@echo ""
-	@echo "=== Container Status ==="
-	podman ps --filter "name=ragtrack" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+dc-migrate: ## Run database migrations (api container must be running)
+	$(COMPOSE) exec api python3 -m alembic upgrade head
 
-clean: down ## Remove all containers, pod, and volumes
-	podman volume rm ragtrack-db-data ragtrack-data 2>/dev/null || true
-	podman image rm ragtrack:latest 2>/dev/null || true
+migrate: dc-migrate ## Run database migrations
+
+# ─── Aliases (Docker Compose) ─────────────────────────────────────────────
+
+up: dc-up ## Start containers
+down: dc-down ## Stop containers
+restart: down up ## Restart containers
+build: dc-build ## Build image
+logs: dc-logs ## Stream logs
+status: ## Show container status
+	@$(COMPOSE) ps
+
+# ─── Development Targets ───────────────────────────────────────────────────
 
 dev: ## Start in development mode (local LLM, debug logging)
-	$(MAKE) up DEV=1
+	$(COMPOSE) up -d --build
+
+# ─── Backend Development Targets ─────────────────────────────────────────
 
 test: ## Run backend unit tests
 	cd $(PROJECT_DIR)backend && python -m pytest tests/ -v
@@ -54,14 +74,20 @@ typecheck: ## Run mypy type checker on Python code
 format: ## Format Python code with ruff
 	cd $(PROJECT_DIR)backend && python -m ruff format .
 
+# ─── Setup Targets ─────────────────────────────────────────────────────────
+
 install-podman: ## Check if podman is installed
 	@command -v podman >/dev/null 2>&1 && echo "Podman is installed: $$(podman --version)" || echo "Podman is NOT installed. See https://podman.io/getting-started/installation"
 
-setup: ## Setup podman environment (copy .env.podman.example and build)
+install-docker: ## Check if docker is installed
+	@command -v docker >/dev/null 2>&1 && echo "Docker is installed: $$(docker --version)" || echo "Docker is NOT installed. See https://docs.docker.com/get-docker/"
+
+setup: ## Setup environment (copy .env.example if .env doesn't exist)
 	@if [ ! -f $(ENV_FILE) ]; then \
 		cp $(ENV_FILE).example $(ENV_FILE) && echo "Created $(ENV_FILE)"; \
 	else \
 		echo "$(ENV_FILE) already exists, skipping copy"; \
 	fi
 
-.PHONY: help
+clean: dc-down ## Stop containers and remove all images and volumes
+	$(COMPOSE) down -v --rmi all 2>/dev/null || true

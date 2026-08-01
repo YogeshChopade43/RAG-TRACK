@@ -33,7 +33,7 @@ class QueryDecompositionService:
         return [p.strip() for p in parts if p.strip()]
 
     # LLM-based decomposition
-    def _llm_decompose(self, query: str):
+    def _llm_decompose(self, query: str, api_key: str = None, model: str = None):
 
         prompt = f"""
                 Break the following query into independent questions.
@@ -48,7 +48,7 @@ class QueryDecompositionService:
                 {query}
                 """
 
-        response = self.llm.chat("", prompt)
+        response = self.llm.chat("", prompt, api_key=api_key, model=model)
 
         questions = response.split("\n")
 
@@ -56,14 +56,14 @@ class QueryDecompositionService:
 
         return cleaned
 
-    def decompose(self, query: str):
+    def decompose(self, query: str, api_key: str = None, model: str = None):
 
         if not self.should_decompose(query):
             logger.debug("QueryDecomposition: skipped")
             return [query]
 
         try:
-            sub_queries = self._llm_decompose(query)
+            sub_queries = self._llm_decompose(query, api_key=api_key, model=model)
 
             if not sub_queries:
                 logger.debug("QueryDecomposition: fallback to rule-based")

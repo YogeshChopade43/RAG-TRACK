@@ -85,6 +85,10 @@ class EmbeddingService:
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
                     "chunk_text": chunk["chunk_text"],
+                    "is_title_block": chunk.get("is_title_block", False),
+                    "structural_type": chunk.get("structural_type", "paragraph"),
+                    "reading_order": chunk.get("reading_order", 0),
+                    "heading_hierarchy": chunk.get("heading_hierarchy", []),
                 }
             )
 

@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const API_BASE = "http://127.0.0.1:8000";
+  const API_BASE = import.meta.env.VITE_API_URL || "";
 
   const loadTokensFromStorage = useCallback(() => {
     const storedAccess = localStorage.getItem("access_token");
@@ -146,6 +146,7 @@ export const AuthProvider = ({ children }) => {
     }
     clearTokens();
     sessionStorage.removeItem("llm_api_key");
+    sessionStorage.removeItem("llm_model");
   }, [accessToken, clearTokens]);
 
   const refreshTokenFn = useCallback(async () => {

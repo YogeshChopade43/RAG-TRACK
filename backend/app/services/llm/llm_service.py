@@ -9,7 +9,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
-from openai.types.responses import Response
+from openai.types.chat import ChatCompletion
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -46,9 +46,17 @@ class LLMService:
 
     def __init__(self):
         """Initialize LLM service."""
+        api_key = settings.openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            logger.warning(
+                "OPENROUTER_API_KEY not configured — "
+                "LLM-dependent features will use fallbacks. "
+                "Set OPENROUTER_API_KEY for full functionality."
+            )
+            api_key = "no-key-configured"
         self.client = OpenAI(
-            api_key=settings.openrouter_api_key or os.getenv("OPENROUTER_API_KEY"),
-            base_url=settings.openrouter_base_url or os.getenv("OPENROUTER_BASE_URL"),
+            api_key=api_key,
+            base_url=settings.openrouter_base_url or "https://openrouter.ai/api/v1",
             timeout=settings.llm_timeout_seconds,
         )
         self.model = settings.llm_model
@@ -74,6 +82,7 @@ class LLMService:
         system_prompt: str,
         user_prompt: str,
         api_key: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> str:
         """
         Send a chat request to the LLM.
@@ -81,6 +90,8 @@ class LLMService:
         Args:
             system_prompt: System prompt context
             user_prompt: User prompt/query
+            api_key: Optional user-provided API key (overrides env)
+            model: Optional user-provided model name (overrides env default)
 
         Returns:
             LLM response text
@@ -89,9 +100,10 @@ class LLMService:
             LLMError: If request fails after retries
         """
         try:
+            llm_model = model or self.model
             logger.debug(
                 "Sending request to LLM",
-                model=self.model,
+                model=llm_model,
                 prompt_length=len(user_prompt),
             )
 
@@ -101,37 +113,33 @@ class LLMService:
                     api_key=api_key,
                     base_url=settings.openrouter_base_url or os.getenv("OPENROUTER_BASE_URL"),
                     timeout=settings.llm_timeout_seconds,
+                    default_headers={
+                        "HTTP-Referer": "http://localhost:8000",
+                        "X-Title": "RAG-TRACK",
+                    },
                 )
 
-            response: Response = client.responses.create(
-                model=self.model,
-                input=[
-                    {"role": "system", "text": system_prompt},
-                    {"role": "user", "text": user_prompt},
+            response: ChatCompletion = client.chat.completions.create(
+                model=llm_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.temperature,
-                max_output_tokens=self.max_tokens,
+                max_tokens=self.max_tokens,
             )
 
             # Extract text from response
-            if not response.output:
+            if not response.choices:
                 logger.warning("LLM returned empty response")
                 return "The model returned an empty response."
 
-            # Get first text output
-            for item in response.output:
-                if hasattr(item, "type") and item.type == "message":
-                    if item.content and hasattr(item.content[0], "text"):
-                        text = item.content[0].text
-                        logger.debug(
-                            "LLM response received",
-                            text_length=len(text),
-                        )
-                        return text.strip()
-
-            # Fallback
-            logger.warning("No text content in LLM response")
-            return "The model returned no text content."
+            text = response.choices[0].message.content
+            logger.debug(
+                "LLM response received",
+                text_length=len(text) if text else 0,
+            )
+            return text.strip() if text else "The model returned no text content."
 
         except Exception as e:
             logger.error(f"LLM request failed: {str(e)}")

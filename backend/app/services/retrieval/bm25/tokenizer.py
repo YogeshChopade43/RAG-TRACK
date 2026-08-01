@@ -1,60 +1,31 @@
 """
 Tokenizer for BM25 retrieval.
 
-Uses simple whitespace tokenization with a comprehensive stopword list
-(identical to the one used in reranking_service.py for consistency).
+Light stopword removal for general text. Preserves technical acronyms
+and short tokens (len >= 2) critical for resumes and technical docs.
 """
 
 import re
 
-# Comprehensive stopword list (same as reranking_service.py)
-STOPWORDS = {
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
-    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
-    'to', 'was', 'will', 'with', 'this', 'but', 'they', 'have',
-    'had', 'what', 'said', 'each', 'which', 'she', 'do', 'how', 'their',
-    'if', 'up', 'out', 'many', 'then', 'them', 'these', 'so', 'some', 'her',
-    'would', 'make', 'like', 'into', 'him', 'time', 'two', 'more', 'go',
-    'no', 'way', 'could', 'my', 'than', 'first', 'been', 'call', 'who',
-    'oil', 'sit', 'now', 'find', 'down', 'day', 'did', 'get', 'come',
-    'made', 'may', 'part', 'over', 'new', 'sound', 'take', 'only', 'little',
-    'work', 'know', 'place', 'year', 'live', 'me', 'back', 'give', 'most',
-    'very', 'after', 'thing', 'our', 'just', 'name', 'good', 'sentence',
-    'man', 'think', 'say', 'great', 'where', 'help', 'through', 'much',
-    'before', 'line', 'right', 'too', 'mean', 'old', 'any', 'same', 'tell',
-    'boy', 'follow', 'came', 'want', 'show', 'also', 'around', 'form',
-    'three', 'small', 'set', 'put', 'end', 'does', 'another', 'well',
-    'large', 'must', 'big', 'even', 'such', 'because', 'turn', 'here',
-    'why', 'ask', 'went', 'men', 'read', 'need', 'land', 'different',
-    'home', 'us', 'move', 'try', 'kind', 'hand', 'picture', 'again',
-    'change', 'off', 'play', 'spell', 'air', 'away', 'animal', 'house',
-    'point', 'page', 'letter', 'mother', 'answer', 'found', 'study',
-    'still', 'learn', 'should', 'world', 'high', 'every', 'between',
-    'both', 'country', 'under', 'last', 'never', 'dear', 'word', 'while',
-    'below', 'above', 'along', 'among', 'whether', 'upon', 'either',
-    'neither', 'across', 'toward', 'towards', 'onto', 'within',
-    'without', 'behind', 'beyond', 'plus', 'minus', 'except', 'until',
-    'since', 'despite', 'unlike', 'including', 'regarding', 'concerning',
-    'considering', 'regardless', 'notwithstanding', 'according',
-    'furthermore', 'moreover', 'however', 'therefore', 'thus', 'hence',
-    'consequently', 'accordingly', 'meanwhile', 'otherwise', 'instead',
-    'likewise', 'similarly', 'namely', 'specifically', 'particularly',
-    'especially', 'indeed', 'actually', 'really', 'quite', 'rather',
-    'somewhat', 'slightly', 'barely', 'hardly', 'scarcely', 'almost',
-    'nearly', 'approximately', 'roughly', 'about', 'circa',
-    'versus', 'via', 'per', 'pro', 'con', 'anti', 'non', 'un', 'im', 'ir', 'il', 'dis', 'mis', 're', 'pre', 'post', 'sub',
-    'super', 'trans', 'inter', 'intra', 'extra', 'ultra', 'mega', 'micro',
-    'macro', 'multi', 'semi', 'quasi', 'pseudo', 'neo', 'counter',
-    'contra', 'vice', 'para', 'ortho', 'meta', 'epi', 'hypo',
-    'hyper', 'endo', 'exo', 'ecto', 'meso', 'thermo', 'hydro', 'geo',
-    'bio', 'psycho', 'socio', 'chrono', 'auto', 'hetero', 'homo', 'mono',
-    'di', 'tri', 'tetra', 'penta', 'hexa', 'hepta', 'octa', 'nona', 'deca',
-}
+STOPWORDS = frozenset({
+    'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these',
+    'those', 'it', 'its', 'as', 'by', 'from', 'about', 'into', 'than',
+    'then', 'so', 'if', 'out', 'up', 'down', 'here', 'there', 'when',
+    'where', 'why', 'how', 'all', 'each', 'few', 'more', 'most', 'other',
+    'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'very',
+    'just', 'too', 'also', 'now',
+})
 
 
 def tokenize(text: str) -> list[str]:
     """
-    Tokenize text into lowercase tokens, removing stopwords and punctuation.
+    Tokenize text into lowercase tokens, removing general stopwords.
+
+    Preserves technical acronyms and short tokens (len >= 2)
+    that are critical for resumes and technical documents.
 
     Args:
         text: Input text string
@@ -62,10 +33,6 @@ def tokenize(text: str) -> list[str]:
     Returns:
         List of token strings
     """
-    # Lowercase and split on non-word characters
     tokens = re.findall(r'\b\w+\b', text.lower())
-
-    # Remove stopwords and short tokens
-    filtered = [t for t in tokens if t not in STOPWORDS and len(t) > 2]
-
+    filtered = [t for t in tokens if t not in STOPWORDS and len(t) >= 2]
     return filtered

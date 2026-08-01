@@ -115,6 +115,10 @@ class RetrievalService:
                         "metadata": {
                             "file_name": item.get("file_name"),
                             "page_number": item.get("page_number"),
+                            "is_title_block": item.get("is_title_block", False),
+                            "structural_type": item.get("structural_type", "paragraph"),
+                            "reading_order": item.get("reading_order", 0),
+                            "heading_hierarchy": item.get("heading_hierarchy", []),
                         },
                     }
                 )
@@ -197,6 +201,10 @@ class RetrievalService:
                         "metadata": {
                             "file_name": item.get("file_name"),
                             "page_number": item.get("page_number"),
+                            "is_title_block": item.get("is_title_block", False),
+                            "structural_type": item.get("structural_type", "paragraph"),
+                            "reading_order": item.get("reading_order", 0),
+                            "heading_hierarchy": item.get("heading_hierarchy", []),
                         },
                     }
                 )
@@ -214,7 +222,19 @@ class RetrievalService:
                 return_all=False,
             )
 
-            matches = rerank_result["top_k_items"]
+            # Normalize reranker output: RankedItem.to_dict() uses 'content',
+            # but the rest of the pipeline expects 'chunk_text'
+            matches = []
+            for item in rerank_result["top_k_items"]:
+                matches.append({
+                    "chunk_id": item["chunk_id"],
+                    "score": item["score"],
+                    "chunk_text": item.get("content", item.get("chunk_text", "")),
+                    "file_name": item.get("file_name"),
+                    "page_number": item.get("page_number"),
+                    "metadata": item.get("metadata", {}),
+                })
+
             ranking_summary = rerank_result["ranking_summary"]
             signal_scores = rerank_result["signal_scores"]
 

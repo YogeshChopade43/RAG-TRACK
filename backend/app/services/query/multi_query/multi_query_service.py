@@ -23,7 +23,7 @@ class MultiQueryService:
         else:
             return 1  # complex → minimal expansion
 
-    def generate_queries(self, query: str, total_sub_queries: int):
+    def generate_queries(self, query: str, total_sub_queries: int, api_key: str = None, model: str = None):
         """
         Generate adaptive number of queries.
         """
@@ -47,7 +47,7 @@ class MultiQueryService:
                 """
 
         try:
-            response = self.llm.chat(system_prompt, query)
+            response = self.llm.chat(system_prompt, query, api_key=api_key, model=model)
 
             queries = response.split("\n")
 

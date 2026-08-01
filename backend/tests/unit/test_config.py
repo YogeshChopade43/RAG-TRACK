@@ -132,15 +132,6 @@ class TestConfig:
         settings = Settings.model_construct()
         assert settings.trace_enabled is True
 
-    def test_ollama_settings(self):
-        """Test Ollama settings."""
-        settings = Settings.model_construct(
-            ollama_base_url="http://localhost:11434",
-            ollama_model="deepseek-r1:1.5b"
-        )
-        assert settings.ollama_base_url == "http://localhost:11434"
-        assert settings.ollama_model == "deepseek-r1:1.5b"
-
     def test_api_key_setting(self):
         """Test API key setting."""
         settings = Settings.model_construct(api_key="test-secret")

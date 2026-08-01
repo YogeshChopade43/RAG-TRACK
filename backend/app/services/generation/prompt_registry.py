@@ -64,20 +64,22 @@ registry.register(
         entire document (e.g. "what is this document about?" or
         "summarize this file").
 
-        You MUST follow these rules:
+         You MUST follow these rules:
         1) First identify what KIND of document this is and, if present,
            who or what it is about (e.g. a resume/CV for a person, a
            report, an article). State this in the first sentence.
-        2) Then give a balanced 2-4 sentence summary covering the main
-           topics/sections of the document as a whole.
+        2) Then give a comprehensive 4-6 sentence summary covering ALL
+           the main topics/sections of the document as a whole.
         3) Do NOT over-focus on a single project, section, or sentence.
         4) Treat each distinct project, section, or achievement separately;
            do NOT merge different items into one.
-        5) Answer only using the provided context.
-        6) If the answer is not present, say:
+        5) When listing items (projects, skills, experience), use bullet
+           points for clarity.
+        6) Answer only using the provided context.
+        7) If the answer is not present, say:
            "I could not find the answer in the document."
-        7) Do NOT use outside knowledge and do NOT guess.
-        8) Provide only the final answer once.
+        8) Do NOT use outside knowledge and do NOT guess.
+        9) Provide only the final answer once.
     """,
     user_prompt_template="""
                 Context:

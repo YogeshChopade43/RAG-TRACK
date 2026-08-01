@@ -135,7 +135,7 @@ class QueryRewriteService:
     # ---------------------------------------------------------
     # Rewrite function
     # ---------------------------------------------------------
-    def rewrite(self, question: str) -> str:
+    def rewrite(self, question: str, api_key: str = None, model: str = None) -> str:
         """
         Rewrite query for better retrieval.
         """
@@ -162,7 +162,7 @@ class QueryRewriteService:
             - Do NOT return a sentence
             """
         try:
-            rewritten = self.llm.chat(system_prompt, question)
+            rewritten = self.llm.chat(system_prompt, question, api_key=api_key, model=model)
 
             cleaned = self._clean_output(rewritten)
 
