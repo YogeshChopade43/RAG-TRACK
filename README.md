@@ -18,6 +18,9 @@
   <a href="https://github.com/YogeshChopade43/RAG-TRACK/stargazers">
     <img src="https://img.shields.io/github/stars/YogeshChopade43/RAG-TRACK" alt="stars" />
   </a>
+  <a href="https://rag-track.onrender.com/">
+    <img src="https://img.shields.io/badge/Live%20Demo-rag-track.onrender.com-4ade80?style=flat-square" alt="live demo" />
+  </a>
   <a href="https://github.com/YogeshChopade43/RAG-TRACK/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/YogeshChopade43/RAG-TRACK" alt="license" />
   </a>
@@ -538,6 +541,10 @@ docker compose up -d --build
 # API:    http://localhost:8000
 # Docs:   http://localhost:8000/docs
 </pre>
+
+<p align="center">
+  <b>Live Demo:</b> <a href="https://rag-track.onrender.com/">https://rag-track.onrender.com/</a>
+</p>
 
 <h3>Configure LLM Provider</h3>
 
