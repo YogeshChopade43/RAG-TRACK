@@ -116,7 +116,7 @@ class Settings(BaseSettings):
 
     # Chunking
     chunk_size: int = 500
-    chunk_overlap: int = 125
+    chunk_overlap: int = 200
 
     # Embedding
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -181,7 +181,7 @@ class Settings(BaseSettings):
     min_password_length: int = 8
 
     # Retrieval
-    top_k_retrieval: int = 5
+    top_k_retrieval: int = 8
     retrieval_score_threshold: float = 0.0
     enable_multi_document: bool = True
 

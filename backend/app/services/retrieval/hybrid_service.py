@@ -6,12 +6,16 @@ fuses scores with weighted combination, and optionally applies
 production-grade reranking as a third layer.
 """
 
+import json
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Any, Optional
 
 from app.core.config import settings
 from app.services.reranking import RerankingService
+from app.services.reranking.reranking_service import _OVERVIEW_KEYWORDS
 from app.services.retrieval.bm25.service import BM25Service
 from app.services.retrieval.retrieval_service import RetrievalService
 
@@ -122,8 +126,8 @@ class HybridRetrievalService:
         vector_results: list[dict[str, Any]] = []
         bm25_results: list[dict[str, Any]] = []
 
-        # Fetch enough candidates for fusion (use larger fetch_k to ensure good fusion)
-        fetch_k = max(top_k, 10)
+        # Fetch enough candidates for fusion (use larger fetch_k to ensure good coverage)
+        fetch_k = max(top_k, 15)
 
         # Run both retrievals in parallel
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -267,6 +271,46 @@ class HybridRetrievalService:
 
         # Sort by fused score descending
         fused.sort(key=lambda x: x["score"], reverse=True)
+
+        # ------------------------------------------------------------------
+        # Step 3.5: Document Header Injection for overview queries
+        # ------------------------------------------------------------------
+        # For document-overview questions ("what is this document about?"),
+        # the title block (first chunk) must be in the candidate set even if
+        # vector/BM25 didn't retrieve it. Without this, the structural
+        # reranker can't boost it.
+        if _OVERVIEW_KEYWORDS.search(query):
+            existing_ids = {item["chunk_id"] for item in fused}
+            # Load metadata to find the title block
+            metadata_path = settings.vector_store_dir / f"{document_id}_metadata.json"
+            if metadata_path.exists() and metadata_path.is_file():
+                try:
+                    with open(metadata_path, encoding="utf-8") as f:
+                        all_metadata = json.load(f)
+                    # Find the title block (is_title_block=True)
+                    for item_meta in all_metadata:
+                        if item_meta.get("is_title_block") and item_meta["chunk_id"] not in existing_ids:
+                            injected = {
+                                "chunk_id": item_meta["chunk_id"],
+                                "score": 0.5,
+                                "chunk_text": item_meta["chunk_text"],
+                                "file_name": item_meta.get("file_name"),
+                                "page_number": item_meta.get("page_number"),
+                                "metadata": {
+                                    "file_name": item_meta.get("file_name"),
+                                    "page_number": item_meta.get("page_number"),
+                                    "is_title_block": True,
+                                    "structural_type": item_meta.get("structural_type", "paragraph"),
+                                    "reading_order": item_meta.get("reading_order", 0),
+                                    "heading_hierarchy": item_meta.get("heading_hierarchy", []),
+                                },
+                                "_component_scores": {"vector": 0.0, "bm25": 0.0, "injected": True},
+                            }
+                            fused.append(injected)
+                            logger.info(f"[{document_id}] Injected title block for overview query")
+                            break
+                except Exception as e:
+                    logger.warning(f"[{document_id}] Header injection failed: {e}")
 
         # ------------------------------------------------------------------
         # Step 4: Optional reranking
