@@ -32,12 +32,30 @@ def get_db() -> Generator:
 
     Yields:
         Database session
+
+    Raises:
+        HTTPException: If database is not configured or unreachable (503)
     """
+    from fastapi import HTTPException, status
+
+    if not settings.database_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is not configured. Authentication features are unavailable on this deployment.",
+        )
+
     global SessionLocal
     if SessionLocal is None:
         SessionLocal = get_session_local()
 
-    db = SessionLocal()
+    try:
+        db = SessionLocal()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database is not reachable. Authentication features are unavailable on this deployment.",
+        )
+
     try:
         yield db
     finally:
