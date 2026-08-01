@@ -17,7 +17,7 @@ Pillow==10.4.0
 # -------- Embedding engine --------
 sentence-transformers==2.7.0
 transformers==4.38.2
-torch==2.2.2
+torch==2.9.0
 
 # -------- Text processing --------
 nltk==3.8.1
