@@ -11,4 +11,7 @@ export default defineConfig({
       '/query': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
+  preview: {
+    allowedHosts: 'all',
+  },
 })
