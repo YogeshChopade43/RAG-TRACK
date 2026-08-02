@@ -14,7 +14,9 @@ export default function LoginForm({ onLoginSuccess, onSwitchToRegister }) {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/auth/login", {
+        const API_BASE = import.meta.env.VITE_API_URL;
+
+        const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
