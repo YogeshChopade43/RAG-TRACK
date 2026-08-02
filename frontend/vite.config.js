@@ -4,13 +4,6 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  server: {
-    proxy: {
-      '/auth': { target: 'http://localhost:8000', changeOrigin: true },
-      '/ingest': { target: 'http://localhost:8000', changeOrigin: true },
-      '/query': { target: 'http://localhost:8000', changeOrigin: true },
-    },
-  },
   preview: {
     allowedHosts: ["rag-track-frontend.onrender.com", "localhost"],
   },
