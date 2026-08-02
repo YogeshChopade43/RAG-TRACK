@@ -7,7 +7,7 @@ pip install -r requirements.txt
 
 ### Start Command
 ```
-python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Environment Variables
@@ -30,7 +30,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 2. **Health check**: Render should use `GET /health` as the health check endpoint
 
-3. **Port**: The start command uses `$PORT` (Render's dynamically-assigned port) — no hardcoded port needed
+3. **Port**: Ensure the start command uses port `8000` (Render sets this via `$PORT` env var, but the default config uses 8000)
 
 4. **Trial API key verification**: The `/auth/test-api-key` endpoint validates keys via a trial LLM call through OpenRouter's chat completions endpoint
 

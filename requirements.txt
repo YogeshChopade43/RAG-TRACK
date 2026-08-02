@@ -12,20 +12,20 @@ slowapi>=0.1.9
 # -------- File ingestion --------
 pdfplumber==0.11.4
 pypdf==4.3.1
-Pillow==11.1.0
+Pillow==10.4.0
 
 # -------- Embedding engine --------
 sentence-transformers==2.7.0
-transformers==4.40.0
-torch==2.9.0
+transformers==4.38.2
+torch==2.2.2
 
 # -------- Text processing --------
 nltk==3.8.1
 
 # -------- Vector operations --------
-numpy==2.0.2
-faiss-cpu==1.12.0
-scikit-learn==1.6.1
+numpy==1.26.4
+faiss-cpu==1.8.0
+scikit-learn==1.4.0
 rank-bm25==0.2.2
 
 # -------- LLM --------
