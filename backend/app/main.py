@@ -79,6 +79,12 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
+
+logger.info("=" * 50)
+logger.info(f"ALLOWED_ORIGINS env = {os.getenv('ALLOWED_ORIGINS')}")
+logger.info(f"settings.allowed_origins = {settings.allowed_origins}")
+logger.info("=" * 50)
+
 # Configure CORS from settings
 app.add_middleware(
     CORSMiddleware,
