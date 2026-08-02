@@ -25,6 +25,8 @@ from app.core.logging import setup_logging
 from app.core.observability import setup_opentelemetry
 from app.core.ratelimit import limiter, rate_limit_exceeded_handler
 
+from app.db.session import init_db
+
 # Setup logging first
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -42,6 +44,10 @@ def _handle_shutdown(signum, frame):
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup/shutdown events."""
     setup_opentelemetry()
+
+    logger.info("Initializing database...")
+    init_db()
+    logger.info("Database initialized successfully.")
 
     signal.signal(signal.SIGINT, _handle_shutdown)
     signal.signal(signal.SIGTERM, _handle_shutdown)
