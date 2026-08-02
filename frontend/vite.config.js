@@ -12,6 +12,6 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: 'all',
+    allowedHosts: ["rag-track-frontend.onrender.com", "localhost"],
   },
 })
