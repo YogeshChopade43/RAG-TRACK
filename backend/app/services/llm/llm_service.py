@@ -47,18 +47,14 @@ class LLMService:
     def __init__(self):
         """Initialize LLM service."""
         api_key = settings.openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            logger.warning(
-                "OPENROUTER_API_KEY not configured — "
-                "LLM-dependent features will use fallbacks. "
-                "Set OPENROUTER_API_KEY for full functionality."
+        if api_key:
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url=settings.openrouter_base_url or "https://openrouter.ai/api/v1",
+                timeout=settings.llm_timeout_seconds,
             )
-            api_key = "no-key-configured"
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url=settings.openrouter_base_url or "https://openrouter.ai/api/v1",
-            timeout=settings.llm_timeout_seconds,
-        )
+        else:
+            self.client = None
         self.model = settings.llm_model
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
@@ -117,6 +113,11 @@ class LLMService:
                         "HTTP-Referer": "http://localhost:8000",
                         "X-Title": "RAG-TRACK",
                     },
+                )
+            elif not client:
+                raise LLMError(
+                    "No OpenRouter API key configured. "
+                    "Provide a key via the X-User-OpenRouter-Key header."
                 )
 
             response: ChatCompletion = client.chat.completions.create(

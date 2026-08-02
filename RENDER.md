@@ -7,14 +7,14 @@ pip install -r requirements.txt
 
 ### Start Command
 ```
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
 ### Environment Variables
 
 | Variable | Required | Description |
 |---|---|---|
-| `OPENROUTER_API_KEY` | Yes (or see trial key below) | API key for OpenRouter LLM provider |
+| `OPENROUTER_API_KEY` | No | Backend fallback key for LLM calls (users provide keys via the UI) |
 | `OPENROUTER_MODEL` | No | Default model (optional — can be overridden per-request via `X-User-OpenRouter-Model` header) |
 | `ALLOWED_ORIGINS` | No | CORS origins (default: `["*"]`). For production, set to your frontend URL(s) |
 | `DATABASE_URL` | No | Required if using auth features. If set, migrations run automatically on startup |

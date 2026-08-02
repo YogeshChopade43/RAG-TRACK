@@ -75,11 +75,6 @@ class Settings(BaseSettings):
                     "Set a strong SECRET_KEY in your environment."
                 )
 
-            if not self.openrouter_api_key:
-                raise ValueError(
-                    "OPENROUTER_API_KEY must be set."
-                )
-
             if not self.database_url:
                 raise ValueError(
                     "DATABASE_URL must be set in production."
