@@ -6,7 +6,7 @@ Uses pydantic-settings for environment-based configuration with validation.
 
 import json
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 
 from pydantic import (
     BeforeValidator,
@@ -21,7 +21,7 @@ from pydantic_settings.sources.types import NoDecode
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
 
-def parse_str_or_list(v: str | list) -> list[str]:
+def parse_str_or_list(v: Union[str, list]) -> list[str]:
     """Parse a string value into a list of strings.
 
     Handles both JSON array strings (e.g. ``["a","b"]``) and
