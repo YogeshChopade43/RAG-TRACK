@@ -87,7 +87,7 @@ class Settings(BaseSettings):
 
     # CORS - configurable via environment
     allowed_origins: Annotated[list[str], NoDecode, BeforeValidator(parse_str_or_list)] = Field(
-        default=["http://localhost:5173", "http://127.0.0.1:5173"],
+        default=["http://localhost:5173", "http://127.0.0.1:5173", "https://rag-track-frontend.onrender.com"],
         validation_alias="ALLOWED_ORIGINS",
     )
 

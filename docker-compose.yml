@@ -33,7 +33,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - API_KEY=${API_KEY:-}
       # CORS — include both localhost and 127.0.0.1 for browser compatibility
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:5173,http://127.0.0.1:5173}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:5173,http://127.0.0.1:5173,https://rag-track-frontend.onrender.com}
       # Rate limiting
       - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-30}
