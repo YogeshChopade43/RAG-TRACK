@@ -17,6 +17,7 @@ venv/
 htmlcov/
 .coverage.*
 .pytest_cache/
+*.json
 
 # =========================
 # Node / React

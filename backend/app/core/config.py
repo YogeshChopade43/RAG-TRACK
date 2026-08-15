@@ -110,18 +110,18 @@ class Settings(BaseSettings):
         return v
 
     # Chunking
-    chunk_size: int = 500
-    chunk_overlap: int = 200
+    chunk_size: int = 350
+    chunk_overlap: int = 100
 
     # Embedding
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L12-v2"
 
     # Vector Store
     vector_store_type: str = "faiss"  # faiss, qdrant, pinecone
     faiss_index_type: str = "hnsw"  # flat, hnsw
     faiss_hnsw_m: int = 32
     faiss_hnsw_ef_construction: int = 64
-    faiss_hnsw_ef_search: int = 64
+    faiss_hnsw_ef_search: int = 128
 
     # Reranking
     use_reranking: bool = True
@@ -129,11 +129,11 @@ class Settings(BaseSettings):
     rerank_top_k: int = 20
     rerank_weights: dict = Field(
         default_factory=lambda: {
-            "semantic": 0.35,
+            "semantic": 0.50,
             "keyword": 0.20,
-            "original": 0.20,
+            "original": 0.15,
             "llm": 0.05,
-            "structural": 0.20,
+            "structural": 0.10,
         }
     )
 
@@ -141,8 +141,8 @@ class Settings(BaseSettings):
     enable_hybrid_search: bool = True
     hybrid_weights: dict = Field(
         default_factory=lambda: {
-            "bm25": 0.3,
-            "vector": 0.7,
+            "bm25": 0.5,
+            "vector": 0.5,
         }
     )
 

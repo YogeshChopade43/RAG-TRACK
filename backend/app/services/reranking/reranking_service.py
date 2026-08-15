@@ -266,6 +266,8 @@ class RerankingService:
                 if reading_order == 0:
                     score = max(score, 0.8)
             else:
+                if is_title:
+                    score = 0.3
                 if section_topics:
                     chunk_text_lower = chunk.get("chunk_text", chunk.get("content", "")).lower()
                     heading_text = " ".join(heading_hierarchy).lower() if heading_hierarchy else ""
@@ -409,15 +411,15 @@ class RerankingService:
         if not chunks:
             return []
 
-        # Default weights
         default_weights = {
-            "semantic": 0.35,
-            "keyword": 0.20,
-            "original": 0.20,
+            "semantic": 0.30,
+            "keyword": 0.25,
+            "original": 0.15,
             "llm": 0.05,
-            "structural": 0.20,
+            "structural": 0.25,
         }
-
+        if hasattr(settings, "rerank_weights") and settings.rerank_weights:
+            default_weights.update(settings.rerank_weights)
         if weights:
             default_weights.update(weights)
 
@@ -531,13 +533,7 @@ class RerankingService:
                     "llm": None,
                     "structural": 0.0,
                 },
-                "weights_used": weights or {
-                    "semantic": 0.35,
-                    "keyword": 0.20,
-                    "original": 0.20,
-                    "llm": 0.05 if self.use_llm_scoring else 0.0,
-                    "structural": 0.20,
-                },
+                "weights_used": weights or settings.rerank_weights.copy(),
             }
 
         # Compute ensemble ranking
@@ -579,13 +575,7 @@ class RerankingService:
             "top_k_items": [item.to_dict() for item in top_k_items],
             "ranking_summary": ranking_summary,
             "signal_scores": signal_scores,
-            "weights_used": weights or {
-                "semantic": 0.35,
-                "keyword": 0.20,
-                "original": 0.20,
-                "llm": 0.05 if self.use_llm_scoring else 0.0,
-                "structural": 0.20,
-            },
+            "weights_used": weights or settings.rerank_weights.copy(),
         }
 
         logger.info(

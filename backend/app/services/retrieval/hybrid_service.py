@@ -15,7 +15,6 @@ from typing import Any, Optional
 
 from app.core.config import settings
 from app.services.reranking import RerankingService
-from app.services.reranking.reranking_service import _OVERVIEW_KEYWORDS
 from app.services.retrieval.bm25.service import BM25Service
 from app.services.retrieval.retrieval_service import RetrievalService
 
@@ -107,9 +106,9 @@ class HybridRetrievalService:
         if weights is None:
             weights = settings.hybrid_weights
 
-        # Fusion weights (default 0.3 BM25, 0.7 vector)
-        w_bm25 = weights.get("bm25", 0.3)
-        w_vector = weights.get("vector", 0.7)
+        # Fusion weights (default from settings: bm25=0.5, vector=0.5)
+        w_bm25 = weights.get("bm25", settings.hybrid_weights.get("bm25", 0.5)) if weights is not None else settings.hybrid_weights.get("bm25", 0.5)
+        w_vector = weights.get("vector", settings.hybrid_weights.get("vector", 0.5)) if weights is not None else settings.hybrid_weights.get("vector", 0.5)
         # Normalize weights to sum to 1.0
         total = w_bm25 + w_vector
         w_bm25 /= total
@@ -246,12 +245,22 @@ class HybridRetrievalService:
             v_res = vector_by_id.get(chunk_id)
             b_res = bm25_by_id.get(chunk_id)
 
-            # Get normalized scores (default to 0.0 if missing from either modality)
-            v_norm = v_res.get("_vector_norm", 0.0) if v_res else 0.0
-            b_norm = b_res.get("_bm25_norm", 0.0) if b_res else 0.0
+            # Get normalized scores
+            v_norm = v_res.get("_vector_norm") if v_res else None
+            b_norm = b_res.get("_bm25_norm") if b_res else None
 
-            # Weighted combination
-            fused_score = w_vector * v_norm + w_bm25 * b_norm
+            # Weighted combination for chunks present in both modalities.
+            # For chunks present in only one modality, use that modality's
+            # normalized score directly so we don't artificially penalize
+            # candidates found by just one retrieval method.
+            if v_norm is not None and b_norm is not None:
+                fused_score = w_vector * v_norm + w_bm25 * b_norm
+            elif v_norm is not None:
+                fused_score = v_norm
+            elif b_norm is not None:
+                fused_score = b_norm
+            else:
+                fused_score = 0.0
 
             # Use metadata from either source (prefer vector's version)
             source = v_res or b_res
@@ -264,8 +273,8 @@ class HybridRetrievalService:
                 "page_number": source.get("page_number"),
                 "metadata": source.get("metadata", {}),
                 "_component_scores": {
-                    "vector": round(v_norm, 4),
-                    "bm25": round(b_norm, 4),
+                    "vector": round(v_norm, 4) if v_norm is not None else None,
+                    "bm25": round(b_norm, 4) if b_norm is not None else None,
                 },
             })
 
@@ -273,21 +282,32 @@ class HybridRetrievalService:
         fused.sort(key=lambda x: x["score"], reverse=True)
 
         # ------------------------------------------------------------------
-        # Step 3.5: Document Header Injection for overview queries
+        # Step 3.5: Document Header Injection for overview queries only
         # ------------------------------------------------------------------
-        # For document-overview questions ("what is this document about?"),
-        # the title block (first chunk) must be in the candidate set even if
-        # vector/BM25 didn't retrieve it. Without this, the structural
-        # reranker can't boost it.
-        if _OVERVIEW_KEYWORDS.search(query):
-            existing_ids = {item["chunk_id"] for item in fused}
-            # Load metadata to find the title block
+        # The title block (first chunk) usually contains identity/role info.
+        # Inject it ONLY for overview queries so it doesn't pollute
+        # specific-topic results (e.g. "what projects", "what GPA").
+        existing_ids = {item["chunk_id"] for item in fused}
+        is_overview = bool(re.search(
+            r"\b(this document|this file|this pdf|this doc|this resume|this cv|"
+            r"what is this|what's this|what is the document|what's the document|"
+            r"summar|summariz|overview|tl;dr|gist|main idea|main point|"
+            r"what is this document about|what is the document about|"
+            r"what is this file about|what is this doc about|"
+            r"what is this resume about|what is this cv about|"
+            r"what is this pdf about|"
+            r"tell me about this document|tell me about this file|"
+            r"tell me about this pdf|tell me about this doc"
+            r")\b",
+            query,
+            re.IGNORECASE,
+        ))
+        if is_overview:
             metadata_path = settings.vector_store_dir / f"{document_id}_metadata.json"
             if metadata_path.exists() and metadata_path.is_file():
                 try:
                     with open(metadata_path, encoding="utf-8") as f:
                         all_metadata = json.load(f)
-                    # Find the title block (is_title_block=True)
                     for item_meta in all_metadata:
                         if item_meta.get("is_title_block") and item_meta["chunk_id"] not in existing_ids:
                             injected = {
@@ -311,6 +331,47 @@ class HybridRetrievalService:
                             break
                 except Exception as e:
                     logger.warning(f"[{document_id}] Header injection failed: {e}")
+
+        # ------------------------------------------------------------------
+        # Step 3.75: Query-specific keyword boosting
+        # ------------------------------------------------------------------
+        q_lower = query.lower()
+        boost_patterns = {
+            "job": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
+            "experience": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
+            "currently": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
+            "position": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
+            "gpa": (r"gpa|grade|cgpa|\d+\.\d+", 0.15),
+            "grade": (r"gpa|grade|cgpa|\d+\.\d+", 0.15),
+            "project": (r"project:|hand gesture|brain tumor|sentiment analysis|resnet|kaggle|thyroid|dcgan|cnc|alarm|predictive|maintenance|test case|selenium|playwright|ensemble|stacking|knn|svm|decision tree|data augmentation", 0.15),
+            "skill": (r"python|sql|c\b|machine learning|nlp|computer vision|time-series|forecasting|generative ai|llm|rag|langchain|langgraph|hugging face|vector database|fastapi|rest api|react|streamlit|scikit-learn|pytorch|lightgbm|pandas|numpy|git|docker|jupyter|google colab|vscode", 0.15),
+            "tool": (r"python|sql|c\b|machine learning|nlp|computer vision|time-series|forecasting|generative ai|llm|rag|langchain|langgraph|hugging face|vector database|fastapi|rest api|react|streamlit|scikit-learn|pytorch|lightgbm|pandas|numpy|git|docker|jupyter|google colab|vscode", 0.15),
+            "technology": (r"python|sql|c\b|machine learning|nlp|computer vision|time-series|forecasting|generative ai|llm|rag|langchain|langgraph|hugging face|vector database|fastapi|rest api|react|streamlit|scikit-learn|pytorch|lightgbm|pandas|numpy|git|docker|jupyter|google colab|vscode", 0.15),
+            "education": (r"mit|academy of engineering|bachelor|master|doctor|electronics|telecommunication|gpa|\d{4}", 0.15),
+            "qualification": (r"mit|academy of engineering|bachelor|master|doctor|electronics|telecommunication|gpa|\d{4}", 0.15),
+        }
+        applied_boosts = set()
+        for trigger, (pattern, boost) in boost_patterns.items():
+            if trigger in applied_boosts:
+                continue
+            if re.search(trigger, q_lower):
+                for item in fused:
+                    heading = item.get("metadata", {}).get("heading_hierarchy", [])
+                    heading_text = " ".join(heading) if isinstance(heading, list) else str(heading)
+                    combined_text = (item.get("chunk_text", "") + " " + heading_text).lower()
+                    if re.search(pattern, combined_text):
+                        item["score"] = round(min(1.0, item["score"] + boost), 4)
+                applied_boosts.add(trigger)
+                fused.sort(key=lambda x: x["score"], reverse=True)
+
+        # ------------------------------------------------------------------
+        # Step 3.8: Penalize title blocks for non-overview queries
+        # ------------------------------------------------------------------
+        if not is_overview:
+            for item in fused:
+                if item.get("metadata", {}).get("is_title_block"):
+                    item["score"] = round(max(0.0, item["score"] - 0.15), 4)
+            fused.sort(key=lambda x: x["score"], reverse=True)
 
         # ------------------------------------------------------------------
         # Step 4: Optional reranking

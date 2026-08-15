@@ -100,8 +100,8 @@ class TestConfig:
 
     def test_chunking_settings_constants(self):
         """Test chunking configuration constants."""
-        assert CHUNK_SIZE == 500
-        assert CHUNK_OVERLAP == 125
+        assert CHUNK_SIZE == 350
+        assert CHUNK_OVERLAP == 100
 
     def test_embedding_model_default(self):
         """Test default embedding model."""
@@ -118,7 +118,7 @@ class TestConfig:
     def test_retrieval_settings(self):
         """Test retrieval configuration."""
         settings = Settings.model_construct()
-        assert settings.top_k_retrieval == 5
+        assert settings.top_k_retrieval == 8
         assert settings.retrieval_score_threshold == 0.0
 
     def test_logging_settings(self):

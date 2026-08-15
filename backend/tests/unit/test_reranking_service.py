@@ -25,6 +25,7 @@ class TestRerankingService:
                 "keyword": 0.25,
                 "original": 0.25,
                 "llm": 0.10,
+                "structural": 0.25,
             }
             yield mock
 

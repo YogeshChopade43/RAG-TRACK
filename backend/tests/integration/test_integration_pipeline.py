@@ -37,9 +37,13 @@ def test_full_pipeline_generates_vector_store(tmp_path, monkeypatch):
         "app.services.parsing.parsing_service.PARSED_BASE",
         str(parsed_dir),
     )
+
+    from app.core.config import Settings
+
     monkeypatch.setattr(
-        "app.core.config.settings.vector_store_dir",
-        vector_store_dir,
+        Settings,
+        "vector_store_dir",
+        property(lambda self: vector_store_dir),
     )
 
     sample_text = (

@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Optional
 
 from app.core.config import CHUNK_OVERLAP, CHUNK_SIZE
 
@@ -14,10 +15,15 @@ _HEADING_KEYWORDS = re.compile(
     r"RAG|Data Augmentation|Test Cases|Automation)\b",
     re.IGNORECASE,
 )
+_SECTION_HEADING_RE = re.compile(
+    r"\b(Experience|Education|Skills|Projects|Certifications|Summary|Profile|"
+    r"Contact|Resume|Work History)\b",
+    re.IGNORECASE,
+)
 
 
 class ChunkingService:
-    def __init__(self, chunk_size: int = None, chunk_overlap: int = None):
+    def __init__(self, chunk_size: Optional[int] = None, chunk_overlap: Optional[int] = None):
         self.chunk_size = chunk_size or CHUNK_SIZE
         self.chunk_overlap = chunk_overlap or CHUNK_OVERLAP
 
@@ -48,7 +54,6 @@ class ChunkingService:
                 pc["is_title_block"] = page_idx == 0 and reading_order == 0
                 pc["reading_order"] = reading_order
                 pc["structural_type"] = self._classify_chunk(pc["chunk_text"])
-                pc["heading_hierarchy"] = self._extract_headings(text)
                 reading_order += 1
 
             chunks.extend(page_chunks)
@@ -100,7 +105,63 @@ class ChunkingService:
                 headings.append(stripped)
         return headings
 
+    def _split_into_sections(self, text: str) -> list[tuple[str, str]]:
+        """Split page text into sections at heading boundaries.
+
+        Uses regex to find section headings anywhere in the text,
+        not just at line boundaries, to handle PDFs with inline text.
+        """
+        sections: list[tuple[str, str]] = []
+        heading_positions: list[tuple[int, str]] = []
+
+        for m in _SECTION_HEADING_RE.finditer(text):
+            heading_positions.append((m.start(), m.group().strip()))
+
+        if not heading_positions:
+            return [("", text)]
+
+        heading_positions.sort(key=lambda x: x[0])
+
+        prev_end = 0
+        for pos, heading in heading_positions:
+            if pos > prev_end:
+                sections.append(("", text[prev_end:pos]))
+            section_text = text[pos:]
+            next_pos = None
+            for next_pos_iter, _ in heading_positions:
+                if next_pos_iter > pos:
+                    next_pos = next_pos_iter
+                    break
+            end = next_pos if next_pos is not None else len(text)
+            sections.append((heading, text[pos:end]))
+            prev_end = end
+
+        if prev_end < len(text):
+            sections.append(("", text[prev_end:]))
+
+        return sections
+
     def _chunk_page(self, text: str, document_id: str, fname: str, page_number: int, start_counter: int) -> list:
+        sections = self._split_into_sections(text)
+        chunks = []
+        counter = start_counter
+
+        for heading, section_text in sections:
+            if not section_text.strip():
+                continue
+
+            section_chunks = self._chunk_section(
+                section_text, document_id, fname, page_number, counter
+            )
+            for chunk in section_chunks:
+                chunk["heading_hierarchy"] = [heading] if heading else []
+            chunks.extend(section_chunks)
+            counter += len(section_chunks)
+
+        return chunks
+
+    def _chunk_section(self, text: str, document_id: str, fname: str, page_number: int, start_counter: int) -> list:
+        """Chunk a single section of text using sentence boundaries with overlap."""
         chunks = []
         text_length = len(text)
         counter = start_counter
@@ -121,7 +182,7 @@ class ChunkingService:
                 })
             return chunks
 
-        current_chunk_sentences = []
+        current_chunk_sentences: list[str] = []
         current_chunk_len = 0
         chunk_start = 0
         last_sentence_end = 0

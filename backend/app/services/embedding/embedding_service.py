@@ -66,7 +66,11 @@ class EmbeddingService:
 
         # Create FAISS index
         dim = int(vectors.shape[1])
-        index = faiss.IndexFlatL2(dim)
+        if settings.faiss_index_type == "hnsw":
+            index = faiss.IndexHNSWFlat(dim, settings.faiss_hnsw_m)
+            index.hnsw.efConstruction = settings.faiss_hnsw_ef_construction
+        else:
+            index = faiss.IndexFlatL2(dim)
         index.add(vectors)
 
         # Save index
