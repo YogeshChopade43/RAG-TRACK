@@ -13,24 +13,16 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.core.auth import get_api_key
 from app.core.config import settings
-from app.core.ratelimit import default_limit
+from app.core.ratelimit import default_limit, limiter
 from app.services.generic.file_storage import save_raw_file
-from app.services.ingestion.ingestion_service import ingest
+from app.services.ingestion.ingestion_service import ingest, remove_document_files
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
-
-
-def require_auth(api_key: str = Depends(get_api_key)) -> str:
-    """Dependency to require API authentication."""
-    return api_key
 
 
 # =============================================================================
@@ -207,7 +199,7 @@ async def get_document(document_id: str):
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: str):
+async def delete_document(document_id: str, _: str = Depends(get_api_key)):
     """Delete a document and its embeddings."""
     import shutil
 
@@ -221,18 +213,8 @@ async def delete_document(document_id: str):
         shutil.rmtree(raw_dir)
         logger.info(f"Deleted raw files for document: {document_id}")
 
-    # Delete vector store
-    vector_store_dir = settings.vector_store_dir
-    index_file = vector_store_dir / f"{document_id}.index"
-    metadata_file = vector_store_dir / f"{document_id}_metadata.json"
-
-    deleted_count = 0
-    if index_file.exists():
-        index_file.unlink()
-        deleted_count += 1
-    if metadata_file.exists():
-        metadata_file.unlink()
-        deleted_count += 1
+    # Delete parsed text, FAISS index, metadata and BM25 index
+    deleted_count = remove_document_files(document_id)
 
     logger.info(f"Deleted {deleted_count} files for document: {document_id}")
 

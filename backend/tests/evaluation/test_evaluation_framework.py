@@ -12,7 +12,6 @@ Covers:
 
 import json
 import math
-import os
 import sys
 from pathlib import Path
 
@@ -167,7 +166,7 @@ class TestRetrievalEvaluatorIntegration:
     """Integration tests for retrieval evaluation against real system data."""
 
     def test_evaluate_single_query(self):
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         doc_id = "eval-test-doc"
 
@@ -217,11 +216,11 @@ class TestEvaluationFrameworkIntegrity:
 
     def test_framework_imports(self):
         from app.evaluation import (
+            EvalDataset,
             EvaluationRunner,
-            RetrievalEvaluator,
             GenerationEvaluator,
             PipelineEvaluator,
-            EvalDataset,
+            RetrievalEvaluator,
         )
         assert RetrievalEvaluator is not None
         assert GenerationEvaluator is not None

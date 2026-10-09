@@ -7,10 +7,10 @@ dimensions, and produces structured evaluation reports.
 
 import logging
 import time
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Optional
 
-from app.evaluation.dataset import EvalDataset, EvalQuery
+from app.evaluation.dataset import EvalDataset
 from app.evaluation.generation_eval import GenerationEvaluator
 from app.evaluation.pipeline_eval import PipelineEvaluator
 from app.evaluation.retrieval_eval import RetrievalEvaluator
@@ -24,14 +24,14 @@ class EvaluationReport:
 
     dataset_name: str
     timestamp: str = ""
-    retrieval: Dict[str, Any] = field(default_factory=dict)
-    generation: Dict[str, Any] = field(default_factory=dict)
-    pipeline: Dict[str, Any] = field(default_factory=dict)
-    reranking_comparison: Dict[str, Any] = field(default_factory=dict)
+    retrieval: dict[str, Any] = field(default_factory=dict)
+    generation: dict[str, Any] = field(default_factory=dict)
+    pipeline: dict[str, Any] = field(default_factory=dict)
+    reranking_comparison: dict[str, Any] = field(default_factory=dict)
     overall_score: float = 0.0
-    summary: Dict[str, Any] = field(default_factory=dict)
+    summary: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def print_summary(self) -> None:
@@ -73,7 +73,7 @@ class EvaluationReport:
             print("\n[PIPELINE PERFORMANCE]")
             latency = agg.get("latency", {})
             if latency:
-                print(f"  End-to-end latency (ms):")
+                print("  End-to-end latency (ms):")
                 print(f"    p50: {latency.get('p50', 0):.1f}")
                 print(f"    p95: {latency.get('p95', 0):.1f}")
                 print(f"    p99: {latency.get('p99', 0):.1f}")
@@ -119,7 +119,7 @@ class EvaluationRunner:
         self,
         dataset: EvalDataset,
         compare_reranking: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run retrieval evaluation.
 
@@ -151,10 +151,10 @@ class EvaluationRunner:
     def run_generation_evaluation(
         self,
         dataset: EvalDataset,
-        answers: Dict[str, str],
-        sources: Dict[str, List[Dict[str, Any]]],
-        retrieved_chunks: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-    ) -> Dict[str, Any]:
+        answers: dict[str, str],
+        sources: dict[str, list[dict[str, Any]]],
+        retrieved_chunks: Optional[dict[str, list[dict[str, Any]]]] = None,
+    ) -> dict[str, Any]:
         """
         Run generation evaluation.
 
@@ -181,7 +181,7 @@ class EvaluationRunner:
     def run_pipeline_evaluation(
         self,
         dataset: EvalDataset,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run pipeline performance evaluation.
 
@@ -203,9 +203,9 @@ class EvaluationRunner:
     def run_full_evaluation(
         self,
         dataset: EvalDataset,
-        answers: Optional[Dict[str, str]] = None,
-        sources: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-        retrieved_chunks: Optional[Dict[str, List[Dict[str, Any]]]] = None,
+        answers: Optional[dict[str, str]] = None,
+        sources: Optional[dict[str, list[dict[str, Any]]]] = None,
+        retrieved_chunks: Optional[dict[str, list[dict[str, Any]]]] = None,
         compare_reranking: bool = True,
     ) -> EvaluationReport:
         """

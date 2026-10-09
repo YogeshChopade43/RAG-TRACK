@@ -8,16 +8,13 @@ import re
 import uuid
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-import httpx
-
-from app.core.auth import verify_api_key
-from app.core.ratelimit import limiter
-
+from app.core.auth import get_api_key
 from app.core.auth_service import (
     authenticate_user,
     change_password,
@@ -28,6 +25,7 @@ from app.core.auth_service import (
 from app.core.auth_service import (
     logout as revoke_token,
 )
+from app.core.ratelimit import limiter
 from app.core.security import decode_token
 from app.db.models.user import User
 from app.db.session import get_db
@@ -304,7 +302,7 @@ async def test_openrouter_api_key(
     request: Request,
     api_key: str = Header(..., alias="X-User-OpenRouter-Key"),
     model: str = Header(..., alias="X-User-OpenRouter-Model"),
-    _: str = Depends(verify_api_key),
+    _: str = Depends(get_api_key),
 ):
     """Test if an OpenRouter API key and model are valid.
 

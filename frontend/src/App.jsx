@@ -49,7 +49,7 @@ function App() {
     } catch (err) {
       setApiKeyTest({ testing: false, valid: false, message: "Test failed: " + err.message });
     }
-  }, [llmApiKey, API_BASE, getAuthHeaders]);
+  }, [llmApiKey, llmModel, API_BASE, getAuthHeaders]);
 
   const handleFileSelect = useCallback(async (selectedFile) => {
     if (!selectedFile) return;
@@ -91,7 +91,7 @@ function App() {
     } finally {
       setUploading(false);
     }
-  }, [getAuthHeaders]);
+  }, [llmApiKey, llmModel, API_BASE, getAuthHeaders]);
 
   const askQuestion = useCallback(async () => {
     setError(null);
@@ -139,15 +139,15 @@ function App() {
         return;
       }
 
-const answer = queryData.answer || "";
-       setMessages((prev) => [...prev, { role: "assistant", content: answer, traceId: queryData.trace_id }]);
+      const answer = queryData.answer || "";
+      setMessages((prev) => [...prev, { role: "assistant", content: answer, traceId: queryData.trace_id }]);
     } catch (err) {
       setError("Error: " + err.message);
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setLoading(false);
     }
-  }, [question, documentId, getAuthHeaders]);
+  }, [question, documentId, llmApiKey, llmModel, API_BASE, getAuthHeaders]);
 
   const handleReset = useCallback(() => {
     setFile(null);

@@ -20,8 +20,5 @@ def get_shared_embedding_model() -> SentenceTransformer:
 
 @lru_cache(maxsize=1)
 def get_shared_rerank_model() -> Optional[SentenceTransformer]:
-    """Get the shared cached rerank embedding model instance."""
-    logger.info(f"Loading shared rerank model: {settings.embedding_model}")
-    model = SentenceTransformer(settings.embedding_model)
-    logger.info("Shared rerank model loaded successfully")
-    return model
+    """Get the rerank model (same model as embeddings, so reuse it instead of loading twice)."""
+    return get_shared_embedding_model()

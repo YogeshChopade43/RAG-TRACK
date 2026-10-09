@@ -1,6 +1,6 @@
 import json
 
-with open('..\\evaluation_report.json', 'r') as f:
+with open('..\\evaluation_report.json') as f:
     report = json.load(f)
 
 retrieval = report.get('retrieval', {})
@@ -50,4 +50,4 @@ else:
 
 print('Score components:', score_components)
 print('Total weight:', total_weight)
-print('Overall score: {:.2%}'.format(overall))
+print(f'Overall score: {overall:.2%}')

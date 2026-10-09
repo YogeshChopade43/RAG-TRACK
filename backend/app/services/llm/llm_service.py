@@ -12,7 +12,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_not_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
@@ -70,7 +70,7 @@ class LLMService:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_not_exception_type(LLMError),  # missing key won't fix itself
         reraise=True,
     )
     def chat(
@@ -97,11 +97,7 @@ class LLMService:
         """
         try:
             llm_model = model or self.model
-            logger.debug(
-                "Sending request to LLM",
-                model=llm_model,
-                prompt_length=len(user_prompt),
-            )
+            logger.debug(f"Sending request to LLM model={llm_model} prompt_length={len(user_prompt)}")
 
             client = self.client
             if api_key:
@@ -136,10 +132,7 @@ class LLMService:
                 return "The model returned an empty response."
 
             text = response.choices[0].message.content
-            logger.debug(
-                "LLM response received",
-                text_length=len(text) if text else 0,
-            )
+            logger.debug(f"LLM response received, text_length={len(text) if text else 0}")
             return text.strip() if text else "The model returned no text content."
 
         except Exception as e:

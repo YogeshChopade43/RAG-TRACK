@@ -6,7 +6,7 @@ retrieved chunks against ground truth relevance judgments.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Optional
 
 from app.evaluation.dataset import EvalDataset, EvalQuery
 from app.evaluation.metrics import (
@@ -37,7 +37,7 @@ class RetrievalEvaluator:
         vector_retriever: Optional[RetrievalService] = None,
         bm25_service: Optional[Any] = None,
         reranker: Optional[Any] = None,
-        top_k_values: Optional[List[int]] = None,
+        top_k_values: Optional[list[int]] = None,
     ):
         self.vector_retriever = vector_retriever or RetrievalService()
         self.bm25_service = bm25_service
@@ -54,7 +54,7 @@ class RetrievalEvaluator:
         query: EvalQuery,
         top_k: int = 5,
         use_reranking: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate retrieval for a single query.
 
@@ -100,7 +100,7 @@ class RetrievalEvaluator:
         dataset: EvalDataset,
         top_k: int = 5,
         use_reranking: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate retrieval across all queries in a dataset.
 
@@ -155,7 +155,7 @@ class RetrievalEvaluator:
         self,
         dataset: EvalDataset,
         top_k: int = 5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Compare retrieval metrics with reranking enabled vs disabled.
 
@@ -195,8 +195,8 @@ class RetrievalEvaluator:
 
 
 def map_at_k(
-    all_relevant: List[Set[str]],
-    all_retrieved: List[List[str]],
+    all_relevant: list[set[str]],
+    all_retrieved: list[list[str]],
     k: int,
 ) -> float:
     """Compute Mean Average Precision@K across queries."""

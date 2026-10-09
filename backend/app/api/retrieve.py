@@ -13,12 +13,10 @@ from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.core.auth import get_api_key
 from app.core.config import settings
-from app.core.ratelimit import default_limit
+from app.core.ratelimit import default_limit, limiter
 from app.services.generation.generation_service import GenerationService
 from app.services.observability.trace_service import TraceService
 from app.services.observability.trace_storage import TraceStorage
@@ -33,13 +31,6 @@ from app.services.retrieval.retrieval_service import RetrievalService
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
-
-
-def require_auth(api_key: str = Depends(get_api_key)) -> str:
-    """Dependency to require API authentication."""
-    return api_key
-
 
 _retrieval_cache: dict = {}
 
@@ -272,7 +263,7 @@ async def query_documents(
         # Pull more candidates so we can build a representative document-wide spread
         top_k = max(base_top_k, settings.top_k_retrieval * 2)
 
-    cache_key = (query_request.document_id, query_request.question.strip().lower(), base_top_k)
+    cache_key = (query_request.document_id, query_request.question.lower(), base_top_k, user_model)
     if cache_key in _retrieval_cache:
         cached = _retrieval_cache[cache_key]
         logger.info(f"Cache hit for query on {query_request.document_id}")
@@ -290,10 +281,6 @@ async def query_documents(
 
     trace_service = TraceService()
     trace_id = trace_service.start_trace(query_request.question)
-
-    # Per-user LLM credentials (session-only, not stored in DB)
-    user_api_key = request.headers.get("X-User-OpenRouter-Key", "").strip() or None
-    user_model = request.headers.get("X-User-OpenRouter-Model", "").strip() or None
 
     try:
         # Step 1: Decompose query (fallback to original question on failure)
@@ -334,55 +321,55 @@ async def query_documents(
                 logger.warning(f"Multi-query expansion failed, using single query: {e}")
                 expanded_queries = [rewritten_query]
 
-        # Step 2c: Retrieval for each expanded query
-        for eq in expanded_queries:
-            trace_service.start_timer("retrieval")
-            result = await asyncio.to_thread(
-                retriever.search,
-                query_request.document_id,
-                eq,
-                top_k,
-            )
-            matches = result.get("matches", [])
-            trace_service.end_timer("retrieval")
-
-            # Hybrid search: trace BM25 results and fusion metadata
-            bm25_results = result.get("bm25_results", [])
-            if bm25_results:
-                trace_service.set_bm25_results(bm25_results)
-
-            fusion_details = result.get("fusion_details", {})
-            if fusion_details:
-                trace_service.set_fusion_info(fusion_details)
-
-            # Track reranking if hybrid service applied it
-            if result.get("reranking_applied"):
-                raw_reranked = result.get("reranker_raw_items", matches)
-                trace_service.set_reranked_chunks(raw_reranked)
-                ranking_summary = result.get("ranking_summary", {})
-                trace_service.set_ranking_summary(ranking_summary)
-                trace_service.set_signal_scores(
-                    result.get("signal_scores", {})
+            # Step 2c: Retrieval for each expanded query
+            for eq in expanded_queries:
+                trace_service.start_timer("retrieval")
+                result = await asyncio.to_thread(
+                    retriever.search,
+                    query_request.document_id,
+                    eq,
+                    top_k,
                 )
-                trace_service.set_ranking_weights(
-                    result.get("weights_used", {})
-                )
+                matches = result.get("matches", [])
+                trace_service.end_timer("retrieval")
 
-            # Convert to trace format (always)
-            formatted_chunks = [
-                {
-                    "chunk_id": chunk["chunk_id"],
-                    "content": chunk.get("chunk_text") or chunk.get("content", ""),
-                    "score": chunk["score"],
-                    "metadata": {
-                        "file_name": chunk.get("file_name"),
-                        "page_number": chunk.get("page_number"),
-                    },
-                }
-                for chunk in matches
-            ]
-            all_formatted_chunks.extend(formatted_chunks)
-            all_chunks.extend(matches)
+                # Hybrid search: trace BM25 results and fusion metadata
+                bm25_results = result.get("bm25_results", [])
+                if bm25_results:
+                    trace_service.set_bm25_results(bm25_results)
+
+                fusion_details = result.get("fusion_details", {})
+                if fusion_details:
+                    trace_service.set_fusion_info(fusion_details)
+
+                # Track reranking if hybrid service applied it
+                if result.get("reranking_applied"):
+                    raw_reranked = result.get("reranker_raw_items", matches)
+                    trace_service.set_reranked_chunks(raw_reranked)
+                    ranking_summary = result.get("ranking_summary", {})
+                    trace_service.set_ranking_summary(ranking_summary)
+                    trace_service.set_signal_scores(
+                        result.get("signal_scores", {})
+                    )
+                    trace_service.set_ranking_weights(
+                        result.get("weights_used", {})
+                    )
+
+                # Convert to trace format (always)
+                formatted_chunks = [
+                    {
+                        "chunk_id": chunk["chunk_id"],
+                        "content": chunk.get("chunk_text") or chunk.get("content", ""),
+                        "score": chunk["score"],
+                        "metadata": {
+                            "file_name": chunk.get("file_name"),
+                            "page_number": chunk.get("page_number"),
+                        },
+                    }
+                    for chunk in matches
+                ]
+                all_formatted_chunks.extend(formatted_chunks)
+                all_chunks.extend(matches)
 
         # Deduplicate retrieved chunks before saving to trace
         unique_trace_chunks = list(
@@ -427,6 +414,7 @@ async def query_documents(
             timeout_seconds=settings.llm_timeout_seconds,
         )
 
+        generation_failed = False
         try:
             answer = await asyncio.to_thread(
                 generator.generate,
@@ -443,6 +431,7 @@ async def query_documents(
                 "I encountered an error while generating the answer. Please try again."
             )
             trace_service.set_error(str(e))
+            generation_failed = True
 
         trace_service.end_timer("generation")
 
@@ -457,9 +446,11 @@ async def query_documents(
 
         sources = list(unique_sources.values())
 
-        _retrieval_cache[cache_key] = {"answer": answer, "sources": sources}
-        if len(_retrieval_cache) > 128:
-            _retrieval_cache.pop(next(iter(_retrieval_cache)))
+        # Don't cache failures, otherwise a transient LLM error sticks forever
+        if not generation_failed:
+            _retrieval_cache[cache_key] = {"answer": answer, "sources": sources}
+            if len(_retrieval_cache) > 128:
+                _retrieval_cache.pop(next(iter(_retrieval_cache)))
 
         # Save trace
         if settings.trace_enabled:
@@ -506,7 +497,7 @@ async def list_traces(limit: int = 50):
 
 
 @router.post("/traces/cleanup")
-async def cleanup_traces(retention_days: int = 7):
+async def cleanup_traces(retention_days: int = 7, _: str = Depends(get_api_key)):
     """Remove traces older than retention_days."""
     from app.services.observability.trace_storage import TraceStorage
 

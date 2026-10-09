@@ -5,15 +5,15 @@ Reads an evaluation JSON (EvaluationReport or retrieval-only format) and
 produces a self-contained, beautifully styled HTML dashboard with charts.
 """
 
-import json
 import argparse
+import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
-def load_report(path: str) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
+def load_report(path: str) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -54,12 +54,12 @@ def gauge_html(score: float, label: str) -> str:
     """
 
 
-def retrieval_charts(agg: Dict[str, float], per_query: List[Dict[str, Any]]) -> str:
+def retrieval_charts(agg: dict[str, float], per_query: list[dict[str, Any]]) -> str:
     ks = ["@1", "@3", "@5", "@10"]
     labels = ["K=1", "K=3", "K=5", "K=10"]
     colors = ["#6366f1", "#3b82f6", "#06b6d4", "#14b8a6"]
 
-    def bar_dataset(metric_name: str) -> Dict[str, Any]:
+    def bar_dataset(metric_name: str) -> dict[str, Any]:
         return {
             "label": metric_name,
             "data": [agg.get(f"{metric_name}{k}", 0.0) for k in ks],
@@ -139,7 +139,7 @@ def retrieval_charts(agg: Dict[str, float], per_query: List[Dict[str, Any]]) -> 
     """
 
 
-def reranking_html(comparison: Dict[str, Any]) -> str:
+def reranking_html(comparison: dict[str, Any]) -> str:
     deltas = comparison.get("deltas", {})
     if not deltas:
         return ""
@@ -173,7 +173,7 @@ def reranking_html(comparison: Dict[str, Any]) -> str:
     """
 
 
-def pipeline_html(pipeline: Dict[str, Any]) -> str:
+def pipeline_html(pipeline: dict[str, Any]) -> str:
     agg = pipeline.get("aggregated_metrics", {})
     latency = agg.get("latency", {})
     stage_latency = agg.get("stage_latency", {})
@@ -217,7 +217,7 @@ def pipeline_html(pipeline: Dict[str, Any]) -> str:
     """
 
 
-def generation_html(generation: Dict[str, Any]) -> str:
+def generation_html(generation: dict[str, Any]) -> str:
     if not generation:
         return ""
     agg = generation.get("aggregated_metrics", {})
@@ -244,7 +244,7 @@ def generation_html(generation: Dict[str, Any]) -> str:
     """
 
 
-def per_query_table(per_query: List[Dict[str, Any]], pipeline_per_query: Optional[List[Dict[str, Any]]] = None) -> str:
+def per_query_table(per_query: list[dict[str, Any]], pipeline_per_query: Optional[list[dict[str, Any]]] = None) -> str:
     rows = []
     for i, q in enumerate(per_query):
         qid = q.get("query_id", f"q{i}")
@@ -296,7 +296,7 @@ def per_query_table(per_query: List[Dict[str, Any]], pipeline_per_query: Optiona
     """
 
 
-def build_html(report: Dict[str, Any]) -> str:
+def build_html(report: dict[str, Any]) -> str:
     dataset_name = report.get("dataset_name", "unknown")
     timestamp = report.get("timestamp", datetime.utcnow().isoformat() + "Z")
     overall_score = report.get("overall_score", 0.0)
@@ -309,7 +309,6 @@ def build_html(report: Dict[str, Any]) -> str:
 
     agg = retrieval.get("aggregated_metrics", {})
     per_query = retrieval.get("per_query_results", [])
-    pipeline_agg = pipeline.get("aggregated_metrics", {})
     pipeline_per_query = pipeline.get("per_query_results", [])
 
     score_components = summary.get("score_components", {})

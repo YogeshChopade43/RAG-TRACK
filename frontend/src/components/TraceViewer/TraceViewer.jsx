@@ -17,7 +17,7 @@ const TraceViewer = ({ traceId }) => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/query/trace/${traceId}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/query/trace/${traceId}`);
         if (!res.ok) throw new Error("Failed to fetch trace data");
         const data = await res.json();
         setTraceData(data);

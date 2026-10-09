@@ -10,7 +10,6 @@ import json
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 from typing import Any, Optional
 
 from app.core.config import settings

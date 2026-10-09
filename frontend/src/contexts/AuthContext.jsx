@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 const AuthContext = createContext(null);
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -16,8 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-
-  const API_BASE = import.meta.env.VITE_API_URL || "";
 
   const loadTokensFromStorage = useCallback(() => {
     const storedAccess = localStorage.getItem("access_token");
@@ -169,7 +168,7 @@ export const AuthProvider = ({ children }) => {
       const data = await res.json();
       saveTokens(data.access_token, data.refresh_token);
       return true;
-    } catch (err) {
+    } catch {
       clearTokens();
       return false;
     }

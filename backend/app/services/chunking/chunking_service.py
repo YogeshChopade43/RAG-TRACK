@@ -126,7 +126,6 @@ class ChunkingService:
         for pos, heading in heading_positions:
             if pos > prev_end:
                 sections.append(("", text[prev_end:pos]))
-            section_text = text[pos:]
             next_pos = None
             for next_pos_iter, _ in heading_positions:
                 if next_pos_iter > pos:

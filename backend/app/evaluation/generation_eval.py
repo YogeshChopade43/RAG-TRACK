@@ -7,7 +7,7 @@ focusing on faithfulness, relevance, and citation accuracy.
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 
 from app.evaluation.dataset import EvalDataset, EvalQuery
 
@@ -32,9 +32,9 @@ class GenerationEvaluator:
         self,
         query: EvalQuery,
         answer: str,
-        sources: List[Dict[str, Any]],
-        retrieved_chunks: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        sources: list[dict[str, Any]],
+        retrieved_chunks: Optional[list[dict[str, Any]]] = None,
+    ) -> dict[str, Any]:
         """
         Evaluate generation quality for a single query.
 
@@ -119,10 +119,10 @@ class GenerationEvaluator:
     def evaluate_dataset(
         self,
         dataset: EvalDataset,
-        answers: Dict[str, str],
-        sources: Dict[str, List[Dict[str, Any]]],
-        retrieved_chunks: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-    ) -> Dict[str, Any]:
+        answers: dict[str, str],
+        sources: dict[str, list[dict[str, Any]]],
+        retrieved_chunks: Optional[dict[str, list[dict[str, Any]]]] = None,
+    ) -> dict[str, Any]:
         """
         Evaluate generation across all queries.
 
@@ -188,8 +188,8 @@ class GenerationEvaluator:
     def _compute_citation_accuracy(
         self,
         answer: str,
-        sources: List[Dict[str, Any]],
-        retrieved_chunks: List[Dict[str, Any]],
+        sources: list[dict[str, Any]],
+        retrieved_chunks: list[dict[str, Any]],
     ) -> float:
         """
         Compute citation accuracy: do cited sources actually contain relevant info?

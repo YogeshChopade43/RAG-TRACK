@@ -248,7 +248,6 @@ RAG-TRACK/
 │   │   ├── tests/            # pytest test suite
 │   │   ├── traces/           # Query trace storage
 │   │   └── main.py           # FastAPI application entry
-│   ├── Dockerfile
 │   ├── pytest.ini
 │   └── run.py
 │

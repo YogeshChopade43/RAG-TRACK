@@ -1,4 +1,4 @@
-""""
+"""
 Retrieval service for RAG-TRACK.
 
 Uses FAISS for fast similarity search, with optional production-grade
@@ -102,7 +102,7 @@ class RetrievalService:
         # Format results
         results = []
         for dist, idx in zip(distances[0], indices[0]):
-            if idx < len(metadata):
+            if 0 <= idx < len(metadata):  # FAISS pads missing hits with -1
                 item = metadata[idx]
                 score = 1.0 / (1.0 + dist)
                 results.append(
@@ -188,7 +188,7 @@ class RetrievalService:
         # Format initial results
         initial_results = []
         for dist, idx in zip(distances[0], indices[0]):
-            if idx < len(metadata):
+            if 0 <= idx < len(metadata):  # FAISS pads missing hits with -1
                 item = metadata[idx]
                 score = 1.0 / (1.0 + dist)
                 initial_results.append(

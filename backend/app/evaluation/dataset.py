@@ -6,9 +6,9 @@ for RAG evaluation, including ground truth relevance judgments.
 """
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Union
 
 
 @dataclass
@@ -18,18 +18,18 @@ class EvalQuery:
     query_id: str
     question: str
     document_id: str
-    relevant_chunk_ids: Set[str] = field(default_factory=set)
-    expected_answer_keywords: List[str] = field(default_factory=list)
+    relevant_chunk_ids: set[str] = field(default_factory=set)
+    expected_answer_keywords: list[str] = field(default_factory=list)
     is_overview: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["relevant_chunk_ids"] = list(self.relevant_chunk_ids)
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "EvalQuery":
+    def from_dict(cls, data: dict[str, Any]) -> "EvalQuery":
         data["relevant_chunk_ids"] = set(data.get("relevant_chunk_ids", []))
         return cls(**data)
 
@@ -44,12 +44,12 @@ class EvalDataset:
 
     def __init__(self, name: str = "default"):
         self.name = name
-        self.queries: List[EvalQuery] = []
+        self.queries: list[EvalQuery] = []
 
     def add_query(self, query: EvalQuery) -> None:
         self.queries.append(query)
 
-    def get_by_document(self, document_id: str) -> List[EvalQuery]:
+    def get_by_document(self, document_id: str) -> list[EvalQuery]:
         return [q for q in self.queries if q.document_id == document_id]
 
     def save(self, path: Union[str, Path]) -> None:

@@ -6,7 +6,8 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --silent
 COPY frontend/ ./
-ARG VITE_API_URL=http://localhost:8000
+# Empty = same-origin (FastAPI serves the built frontend). Set only for a separately hosted frontend.
+ARG VITE_API_URL=
 RUN npm run build
 
 # ===== Stage 2: Install Python Dependencies =====

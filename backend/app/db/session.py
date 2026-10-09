@@ -54,7 +54,7 @@ def get_db() -> Generator:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database is not reachable. Authentication features are unavailable on this deployment.",
-        )
+        ) from None
 
     try:
         yield db

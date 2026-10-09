@@ -11,10 +11,11 @@ Implements standard information retrieval and ranking metrics:
 """
 
 import math
-from typing import Any, Dict, List, Optional, Sequence, Set, Union
+from collections.abc import Sequence
+from typing import Any, Optional
 
 
-def precision_at_k(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
+def precision_at_k(relevant: set[str], retrieved: Sequence[str], k: int) -> float:
     """
     Compute Precision@K.
 
@@ -35,7 +36,7 @@ def precision_at_k(relevant: Set[str], retrieved: Sequence[str], k: int) -> floa
     return hits / len(top_k)
 
 
-def recall_at_k(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
+def recall_at_k(relevant: set[str], retrieved: Sequence[str], k: int) -> float:
     """
     Compute Recall@K.
 
@@ -54,7 +55,7 @@ def recall_at_k(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
     return hits / len(relevant)
 
 
-def mrr(relevant: Set[str], retrieved: Sequence[str]) -> float:
+def mrr(relevant: set[str], retrieved: Sequence[str]) -> float:
     """
     Compute Mean Reciprocal Rank.
 
@@ -91,7 +92,7 @@ def dcg(scores: Sequence[float], k: int) -> float:
     )
 
 
-def ndcg(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
+def ndcg(relevant: set[str], retrieved: Sequence[str], k: int) -> float:
     """
     Compute Normalized Discounted Cumulative Gain@K.
 
@@ -119,7 +120,7 @@ def ndcg(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
     return actual_dcg / ideal_dcg
 
 
-def hit_rate(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
+def hit_rate(relevant: set[str], retrieved: Sequence[str], k: int) -> float:
     """
     Compute Hit Rate@K.
 
@@ -137,7 +138,7 @@ def hit_rate(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
     return 1.0 if any(item in relevant for item in top_k) else 0.0
 
 
-def average_precision(relevant: Set[str], retrieved: Sequence[str], k: int) -> float:
+def average_precision(relevant: set[str], retrieved: Sequence[str], k: int) -> float:
     """
     Compute Average Precision@K.
 
@@ -168,7 +169,7 @@ def average_precision(relevant: Set[str], retrieved: Sequence[str], k: int) -> f
     return sum_precisions / len(relevant)
 
 
-def map_at_k(all_relevant: List[Set[str]], all_retrieved: List[List[str]], k: int) -> float:
+def map_at_k(all_relevant: list[set[str]], all_retrieved: list[list[str]], k: int) -> float:
     """
     Compute Mean Average Precision@K across multiple queries.
 
@@ -191,10 +192,10 @@ def map_at_k(all_relevant: List[Set[str]], all_retrieved: List[List[str]], k: in
 
 
 def retrieval_metrics_summary(
-    relevant: Set[str],
-    retrieved: List[str],
-    k_values: Optional[List[int]] = None,
-) -> Dict[str, Any]:
+    relevant: set[str],
+    retrieved: list[str],
+    k_values: Optional[list[int]] = None,
+) -> dict[str, Any]:
     """
     Compute a comprehensive retrieval metrics summary.
 

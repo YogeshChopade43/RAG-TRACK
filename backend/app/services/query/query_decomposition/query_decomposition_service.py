@@ -18,8 +18,8 @@ class QueryDecompositionService:
     def should_decompose(self, query: str) -> bool:
         q = query.lower()
 
-        # simple heuristics
-        if "and" in q or "or" in q or "but" in q or "also" in q or "additionally" in q:
+        # simple heuristics (word boundaries: "or" must not match "for", "work", ...)
+        if re.search(r"\b(and|or|but|also|additionally)\b", q):
             return True
 
         if q.count("?") > 1:

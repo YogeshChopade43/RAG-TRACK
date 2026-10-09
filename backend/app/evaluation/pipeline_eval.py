@@ -7,18 +7,16 @@ throughput, error rates, and stage-level breakdowns.
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.evaluation.dataset import EvalDataset, EvalQuery
 from app.services.generation.generation_service import GenerationService
-from app.services.observability.trace_service import TraceService
 from app.services.query.multi_query.multi_query_service import MultiQueryService
 from app.services.query.query_decomposition.query_decomposition_service import (
     QueryDecompositionService,
 )
 from app.services.query.query_rewrite.query_rewrite_service import QueryRewriteService
 from app.services.retrieval.hybrid_service import HybridRetrievalService
-from app.services.retrieval.retrieval_service import RetrievalService
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +49,7 @@ class PipelineEvaluator:
     def evaluate_query(
         self,
         query: EvalQuery,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run full pipeline for a single query and collect metrics.
 
@@ -98,19 +96,19 @@ class PipelineEvaluator:
                     expanded = [rewritten]
                 timings["multi_query_ms"] = (time.perf_counter() - start) * 1000
 
-                # Retrieval
+                # Retrieval for each expanded query (mirrors the /query endpoint)
                 start = time.perf_counter()
-                result = self.retriever.search(
-                    query.document_id,
-                    rewritten,
-                    top_k=self.top_k,
-                    use_reranking=self.use_reranking,
-                )
+                for eq in expanded:
+                    result = self.retriever.search(
+                        query.document_id,
+                        eq,
+                        top_k=self.top_k,
+                        use_reranking=self.use_reranking,
+                    )
+                    matches = result.get("matches", [])
+                    all_matches.extend(matches)
+                    all_chunks.extend(result.get("reranker_raw_items", matches))
                 timings["retrieval_ms"] = (time.perf_counter() - start) * 1000
-
-                matches = result.get("matches", [])
-                all_matches.extend(matches)
-                all_chunks.extend(result.get("reranker_raw_items", matches))
 
             # Deduplicate
             seen = set()
@@ -175,7 +173,7 @@ class PipelineEvaluator:
     def evaluate_dataset(
         self,
         dataset: EvalDataset,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate pipeline across all queries in a dataset.
 
@@ -234,7 +232,7 @@ class PipelineEvaluator:
             "per_query_results": results,
         }
 
-    def _percentiles(self, values: List[float]) -> Dict[str, float]:
+    def _percentiles(self, values: list[float]) -> dict[str, float]:
         """Compute latency percentiles."""
         if not values:
             return {"p50": 0.0, "p95": 0.0, "p99": 0.0, "mean": 0.0, "min": 0.0, "max": 0.0}

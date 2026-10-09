@@ -5,8 +5,8 @@ backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir.parent))
 
 from app.evaluation.dataset import EvalDataset
-from app.evaluation.runner import EvaluationRunner
 from app.evaluation.generate_html_report import build_html
+from app.evaluation.runner import EvaluationRunner
 
 RESUME_DOC_ID = "ab738a78-52ba-4dfb-925f-ee8d4f166628"
 dataset_path = backend_dir / "tests" / "evaluation" / "datasets" / "resume_eval_v1.json"

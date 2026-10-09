@@ -26,8 +26,8 @@ embedding_service = EmbeddingService()
 bm25_service = BM25Service()
 
 
-def _cleanup_partial_files(document_id: str) -> None:
-    """Remove partial files created during failed ingestion."""
+def remove_document_files(document_id: str) -> int:
+    """Remove derived files (parsed text, indexes, metadata) for a document."""
     paths_to_remove = [
         settings.parsed_dir / f"{document_id}.json",
         settings.vector_store_dir / f"{document_id}.index",
@@ -36,13 +36,16 @@ def _cleanup_partial_files(document_id: str) -> None:
         settings.vector_store_dir / f"{document_id}_bm25.pkl",
     ]
 
+    removed = 0
     for path in paths_to_remove:
         try:
             if path.exists():
                 path.unlink()
-                logger.debug(f"Cleaned up partial file: {path}")
+                removed += 1
+                logger.debug(f"Removed file: {path}")
         except Exception as e:
-            logger.warning(f"Failed to cleanup {path}: {e}")
+            logger.warning(f"Failed to remove {path}: {e}")
+    return removed
 
 
 def ingest(document_id: str, filename: str) -> dict:
@@ -138,13 +141,13 @@ def ingest(document_id: str, filename: str) -> dict:
 
     except IngestionError:
         # Already logged with context, cleanup and re-raise
-        _cleanup_partial_files(document_id)
+        remove_document_files(document_id)
         raise
 
     except Exception as e:
         # Catch-all for unexpected errors
         logger.exception(f"[{document_id}] Unexpected error during ingestion: {e}")
-        _cleanup_partial_files(document_id)
+        remove_document_files(document_id)
         raise IngestionError(
             message=f"Unexpected ingestion error: {str(e)}",
             document_id=document_id,

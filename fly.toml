@@ -1,0 +1,45 @@
+app = "rag-track"
+primary_region = "iad"
+# Fly-managed swap (the container runs as non-root, so it can't create swap itself)
+swap_size_mb = 512
+
+[build]
+  dockerfile = "Containerfile"
+
+[env]
+  ENVIRONMENT = "production"
+  HOST = "0.0.0.0"
+  PORT = "8000"
+  LOG_LEVEL = "INFO"
+  RATE_LIMIT_ENABLED = "true"
+  RATE_LIMIT_PER_MINUTE = "60"
+  LLM_MODEL = "google/gemma-4-26b-a4b-it:free"
+  OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+  EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
+  CHUNK_SIZE = "350"
+  CHUNK_OVERLAP = "100"
+  TOP_K_RETRIEVAL = "8"
+  TRACE_ENABLED = "true"
+  PYTHONUNBUFFERED = "1"
+  PYTHONDONTWRITEBYTECODE = "1"
+
+[[mounts]]
+  source = "ragtrack_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 50
+    hard_limit = 100
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

@@ -6,7 +6,6 @@ Main application entry point with middleware, routing, and observability.
 
 import logging
 import os
-import signal
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -24,20 +23,13 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.observability import setup_opentelemetry
 from app.core.ratelimit import limiter, rate_limit_exceeded_handler
-
 from app.db.session import init_db
 
 # Setup logging first
 setup_logging()
 logger = logging.getLogger(__name__)
 
-_shutdown_requested = False
-
-
-def _handle_shutdown(signum, frame):
-    global _shutdown_requested
-    _shutdown_requested = True
-    logger.info("Shutdown signal received", extra={"signal": signum})
+frontend_dist = Path("/app/frontend/dist")  # built into the container image
 
 
 @asynccontextmanager
@@ -45,12 +37,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler for startup/shutdown events."""
     setup_opentelemetry()
 
-    logger.info("Initializing database...")
-    init_db()
-    logger.info("Database initialized successfully.")
-
-    signal.signal(signal.SIGINT, _handle_shutdown)
-    signal.signal(signal.SIGTERM, _handle_shutdown)
+    # Database is optional: only auth endpoints need it (they return 503 without it)
+    if settings.database_url:
+        try:
+            init_db()
+            logger.info("Database initialized successfully.")
+        except Exception as e:
+            logger.error(f"Database initialization failed, auth endpoints will be unavailable: {e}")
+    else:
+        logger.info("DATABASE_URL not set — skipping database initialization")
 
     logger.info(f"Starting {settings.app_name} in {settings.environment} mode")
     logger.info(f"Data directory: {settings.data_dir}")
@@ -67,8 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
-    if _shutdown_requested:
-        logger.info("Graceful shutdown complete")
+    logger.info("Shutdown complete")
 
 
 # Create FastAPI app
@@ -84,12 +78,6 @@ app = FastAPI(
 # Add rate limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-
-
-logger.info("=" * 50)
-logger.info(f"ALLOWED_ORIGINS env = {os.getenv('ALLOWED_ORIGINS')}")
-logger.info(f"settings.allowed_origins = {settings.allowed_origins}")
-logger.info("=" * 50)
 
 # Configure CORS from settings
 app.add_middleware(
@@ -130,7 +118,6 @@ app.include_router(retrieve.router, prefix="/query", tags=["Query"])
 @app.get("/")
 async def root(request: Request):
     """Root endpoint - serves frontend or returns app info."""
-    frontend_dist = Path("/app/frontend/dist")
     if frontend_dist.exists():
         return await StaticFiles(directory=str(frontend_dist), html=True).get_response("index.html", request.scope)
     return {
@@ -209,7 +196,6 @@ def startup_check(request: Request):
     }
 
 
-frontend_dist = Path("/app/frontend/dist")
 if frontend_dist.exists():
     app.mount(
         "/static",

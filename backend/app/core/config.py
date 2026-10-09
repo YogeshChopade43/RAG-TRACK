@@ -204,8 +204,7 @@ class Settings(BaseSettings):
     @property
     def data_dir(self) -> Path:
         """Get data directory path."""
-        root = Path(__file__).parent.parent.parent.parent
-        return root / "data"
+        return PROJECT_ROOT / "data"
 
     @property
     def vector_store_dir(self) -> Path:
