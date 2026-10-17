@@ -18,7 +18,7 @@ def services(mock_client):
     from app.main import app
 
     retriever = Mock()
-    retriever.search.side_effect = lambda doc_id, q, top_k: {
+    retriever.search.side_effect = lambda doc_id, q, top_k, **_: {
         "matches": [{"chunk_id": q, "chunk_text": q, "file_name": "f.pdf", "page_number": 1, "score": 0.9}]
     }
     rewriter = Mock(is_overview_question=Mock(return_value=False))
@@ -63,6 +63,17 @@ def test_generation_failure_is_not_cached(services):
 
     assert "error" in first["answer"]
     assert second["answer"] == "real answer"
+
+
+def test_cache_hit_returns_original_trace_id(services):
+    client, _, generator = services
+    generator.generate.return_value = "answer"
+    body = {"document_id": DOC_ID, "question": "what is the budget?"}
+
+    first = client.post("/query", json=body).json()
+    second = client.post("/query", json=body).json()
+
+    assert second["trace_id"] == first["trace_id"]
 
 
 @pytest.mark.parametrize("query,expected", [

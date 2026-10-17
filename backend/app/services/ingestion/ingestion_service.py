@@ -13,6 +13,7 @@ from app.core.exceptions import (
 )
 from app.services.chunking.chunking_service import ChunkingService
 from app.services.embedding.embedding_service import EmbeddingService
+from app.services.generic.file_storage import owner_path
 from app.services.generic.utils.parser_utils import get_page_text
 from app.services.parsing.parsing_service import ParsingService
 from app.services.retrieval.bm25.service import BM25Service
@@ -34,6 +35,7 @@ def remove_document_files(document_id: str) -> int:
         settings.vector_store_dir / f"{document_id}_metadata.json",
         settings.vector_store_dir / f"{document_id}.json",
         settings.vector_store_dir / f"{document_id}_bm25.pkl",
+        owner_path(document_id),
     ]
 
     removed = 0

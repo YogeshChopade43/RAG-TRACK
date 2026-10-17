@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Optional
 
 from app.services.llm import get_llm_service
 
@@ -56,9 +57,11 @@ class QueryDecompositionService:
 
         return cleaned
 
-    def decompose(self, query: str, api_key: str = None, model: str = None):
-
-        if not self.should_decompose(query):
+    def decompose(self, query: str, api_key: str = None, model: str = None, needed: Optional[bool] = None):
+        """Split a multi-intent query. `needed` (e.g. from Jev) overrides the heuristic."""
+        if needed is None:
+            needed = self.should_decompose(query)
+        if not needed:
             logger.debug("QueryDecomposition: skipped")
             return [query]
 

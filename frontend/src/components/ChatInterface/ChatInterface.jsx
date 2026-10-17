@@ -119,6 +119,14 @@ const ChatInterface = ({ inputValue, onInputChange, onAsk, isLoading, disabled, 
                   </div>
                 )}
               </div>
+              {msg.role === "assistant" && msg.sources?.length > 0 && (
+                <div className="message-sources">
+                  Sources:{" "}
+                  {msg.sources
+                    .map((s) => (s.page_number ? `${s.file_name} p.${s.page_number}` : s.file_name))
+                    .join(" · ")}
+                </div>
+              )}
               {msg.role === "assistant" && msg.traceId && (
                 <TraceViewer traceId={msg.traceId} />
               )}

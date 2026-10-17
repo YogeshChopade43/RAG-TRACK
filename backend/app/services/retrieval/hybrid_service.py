@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Optional
 
 from app.core.config import settings
-from app.services.reranking import RerankingService
+from app.services.jev import JevReranker
 from app.services.retrieval.bm25.service import BM25Service
 from app.services.retrieval.retrieval_service import RetrievalService
 
@@ -29,7 +29,7 @@ class HybridRetrievalService:
     2. BM25 search (BM25Service.search)
     3. Score normalization (min-max per modality)
     4. Weighted fusion (default: 0.3 BM25, 0.7 vector)
-    5. Optional reranking (RerankingService.rerank)
+    5. Optional reranking (JevReranker.rerank)
 
     Fusion details are included in the result dict for observability.
     """
@@ -38,7 +38,7 @@ class HybridRetrievalService:
         self,
         vector_retriever: Optional[RetrievalService] = None,
         bm25_service: Optional[BM25Service] = None,
-        reranker: Optional[RerankingService] = None,
+        reranker: Optional[JevReranker] = None,
     ):
         """
         Initialize hybrid retrieval service.
@@ -46,12 +46,12 @@ class HybridRetrievalService:
         Args:
             vector_retriever: RetrievalService instance (created if None)
             bm25_service: BM25Service instance (created if None)
-            reranker: RerankingService instance (created based on settings if None)
+            reranker: JevReranker instance (created based on settings if None)
         """
         self.vector_retriever = vector_retriever or RetrievalService()
         self.bm25_service = bm25_service or BM25Service()
         self.reranker = reranker or (
-            RerankingService() if settings.use_reranking else None
+            JevReranker() if settings.use_reranking else None
         )
         logger.info(
             f"HybridRetrievalService initialized (reranker={'enabled' if self.reranker else 'disabled'})"
@@ -87,6 +87,8 @@ class HybridRetrievalService:
         top_k: int = 3,
         use_reranking: Optional[bool] = None,
         weights: Optional[dict[str, float]] = None,
+        rerank_query: Optional[str] = None,
+        api_key: Optional[str] = None,
     ) -> dict[str, Any]:
         """
         Perform hybrid search combining BM25 and vector retrieval.
@@ -97,6 +99,8 @@ class HybridRetrievalService:
             top_k: Number of final results to return
             use_reranking: Override global reranking setting (None = use global)
             weights: Optional dict with 'bm25' and 'vector' keys for fusion weights
+            rerank_query: Question the reranker judges relevance against (default: query)
+            api_key: Optional user OpenRouter key for the Jev reranker
 
         Returns:
             Dict with 'matches', 'fusion_details', and optionally reranking info
@@ -332,36 +336,16 @@ class HybridRetrievalService:
                     logger.warning(f"[{document_id}] Header injection failed: {e}")
 
         # ------------------------------------------------------------------
-        # Step 3.75: Query-specific keyword boosting
+        # Step 3.75: Section boost — a query that names a chunk's section
+        # heading (e.g. "skills", "education") favours chunks under it
         # ------------------------------------------------------------------
         q_lower = query.lower()
-        boost_patterns = {
-            "job": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
-            "experience": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
-            "currently": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
-            "position": (r"engineer|manager|full-time|intern|developer|analyst|specialist", 0.15),
-            "gpa": (r"gpa|grade|cgpa|\d+\.\d+", 0.15),
-            "grade": (r"gpa|grade|cgpa|\d+\.\d+", 0.15),
-            "project": (r"project:|hand gesture|brain tumor|sentiment analysis|resnet|kaggle|thyroid|dcgan|cnc|alarm|predictive|maintenance|test case|selenium|playwright|ensemble|stacking|knn|svm|decision tree|data augmentation", 0.15),
-            "skill": (r"python|sql|c\b|machine learning|nlp|computer vision|time-series|forecasting|generative ai|llm|rag|langchain|langgraph|hugging face|vector database|fastapi|rest api|react|streamlit|scikit-learn|pytorch|lightgbm|pandas|numpy|git|docker|jupyter|google colab|vscode", 0.15),
-            "tool": (r"python|sql|c\b|machine learning|nlp|computer vision|time-series|forecasting|generative ai|llm|rag|langchain|langgraph|hugging face|vector database|fastapi|rest api|react|streamlit|scikit-learn|pytorch|lightgbm|pandas|numpy|git|docker|jupyter|google colab|vscode", 0.15),
-            "technology": (r"python|sql|c\b|machine learning|nlp|computer vision|time-series|forecasting|generative ai|llm|rag|langchain|langgraph|hugging face|vector database|fastapi|rest api|react|streamlit|scikit-learn|pytorch|lightgbm|pandas|numpy|git|docker|jupyter|google colab|vscode", 0.15),
-            "education": (r"mit|academy of engineering|bachelor|master|doctor|electronics|telecommunication|gpa|\d{4}", 0.15),
-            "qualification": (r"mit|academy of engineering|bachelor|master|doctor|electronics|telecommunication|gpa|\d{4}", 0.15),
-        }
-        applied_boosts = set()
-        for trigger, (pattern, boost) in boost_patterns.items():
-            if trigger in applied_boosts:
-                continue
-            if re.search(trigger, q_lower):
-                for item in fused:
-                    heading = item.get("metadata", {}).get("heading_hierarchy", [])
-                    heading_text = " ".join(heading) if isinstance(heading, list) else str(heading)
-                    combined_text = (item.get("chunk_text", "") + " " + heading_text).lower()
-                    if re.search(pattern, combined_text):
-                        item["score"] = round(min(1.0, item["score"] + boost), 4)
-                applied_boosts.add(trigger)
-                fused.sort(key=lambda x: x["score"], reverse=True)
+        for item in fused:
+            heading = " ".join(item.get("metadata", {}).get("heading_hierarchy") or []).lower()
+            stem = heading.rstrip("s")  # "skills" -> "skill" also matches the singular
+            if stem and re.search(r"\b" + re.escape(stem), q_lower):
+                item["score"] = round(min(1.0, item["score"] + 0.15), 4)
+        fused.sort(key=lambda x: x["score"], reverse=True)
 
         # ------------------------------------------------------------------
         # Step 3.8: Penalize title blocks for non-overview queries
@@ -381,6 +365,7 @@ class HybridRetrievalService:
             else (self.reranker is not None)
         )
 
+        rerank_result = None
         if should_rerank and self.reranker and len(fused) > 1:
             # Prepare chunks for reranker (strip fusion fields, preserve chunk_text)
             rerank_chunks = [
@@ -396,12 +381,14 @@ class HybridRetrievalService:
             ]
 
             rerank_result = self.reranker.rerank(
-                query=query,
+                query=rerank_query or query,
                 chunks=rerank_chunks,
                 top_k=top_k,
                 return_all=False,
+                api_key=api_key,
             )
 
+        if rerank_result is not None:
             raw_reranked = rerank_result["top_k_items"]
             ranking_summary = rerank_result["ranking_summary"]
             signal_scores = rerank_result["signal_scores"]

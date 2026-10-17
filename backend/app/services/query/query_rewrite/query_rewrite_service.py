@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Optional
 
 from app.services.llm import get_llm_service
 
@@ -135,12 +136,13 @@ class QueryRewriteService:
     # ---------------------------------------------------------
     # Rewrite function
     # ---------------------------------------------------------
-    def rewrite(self, question: str, api_key: str = None, model: str = None) -> str:
+    def rewrite(self, question: str, api_key: str = None, model: str = None, needed: Optional[bool] = None) -> str:
         """
-        Rewrite query for better retrieval.
+        Rewrite query for better retrieval. `needed` (e.g. from Jev) overrides the heuristic.
         """
-
-        if not self.should_rewrite(question):
+        if needed is None:
+            needed = self.should_rewrite(question)
+        if not needed:
             logger.debug("QueryRewrite: skipped")
             return question
 

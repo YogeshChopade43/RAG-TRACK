@@ -280,7 +280,7 @@ class EvaluationRunner:
         # Renormalize weights so missing components don't drag down the score
         total_weight = sum(weight for _, _, weight in score_components)
         if total_weight > 0:
-            overall = sum(score * weight for score, _, weight in score_components) / total_weight
+            overall = sum(score * weight for _, score, weight in score_components) / total_weight
         else:
             overall = 0.0
 

@@ -1,6 +1,5 @@
 import logging
 from functools import lru_cache
-from typing import Optional
 
 from sentence_transformers import SentenceTransformer
 
@@ -17,8 +16,3 @@ def get_shared_embedding_model() -> SentenceTransformer:
     logger.info("Shared embedding model loaded successfully")
     return model
 
-
-@lru_cache(maxsize=1)
-def get_shared_rerank_model() -> Optional[SentenceTransformer]:
-    """Get the rerank model (same model as embeddings, so reuse it instead of loading twice)."""
-    return get_shared_embedding_model()

@@ -57,6 +57,32 @@ async def get_api_key(
     return api_key
 
 
+def get_optional_user_id(request: Request) -> Optional[str]:
+    """User id from a valid `Authorization: Bearer <access token>`, else None (anonymous)."""
+    from app.core.security import decode_token
+
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    try:
+        payload = decode_token(auth[len("Bearer "):])
+    except Exception:
+        return None
+    # ponytail: signature + expiry only; logged-out (revoked) tokens are checked
+    # against the DB in /auth, not here, so they work until they expire (30 min)
+    return payload.get("sub") if payload.get("type") == "access" else None
+
+
+def check_document_access(document_id: str, request: Request) -> None:
+    """404 unless the document is anonymous or owned by the requesting user."""
+    from app.services.generic.file_storage import get_owner
+
+    owner = get_owner(document_id)
+    if owner and owner != get_optional_user_id(request):
+        # 404, not 403: don't reveal that someone else's document exists
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
 def add_token_to_blacklist(token: str) -> None:
     """Add a token to the blacklist."""
     _token_blacklist.add(token)

@@ -125,17 +125,15 @@ class Settings(BaseSettings):
 
     # Reranking
     use_reranking: bool = True
-    use_llm_reranking: bool = False
-    rerank_top_k: int = 20
-    rerank_weights: dict = Field(
-        default_factory=lambda: {
-            "semantic": 0.50,
-            "keyword": 0.20,
-            "original": 0.15,
-            "llm": 0.05,
-            "structural": 0.10,
-        }
-    )
+    rerank_top_k: int = 20  # candidates fetched for the reranker
+
+    # Jev decision model (via OpenRouter): query analysis, reranking, guardrails.
+    # Falls back to heuristics / retrieval order when disabled or unreachable.
+    jev_enabled: bool = True
+    jev_model: str = "typesafe/jev-1.14"
+    jev_url: str = "https://openrouter.ai/api/alpha/decisions"  # alpha API, may move
+    jev_timeout_seconds: int = 15
+    jev_min_relevance: float = 0.1  # reranked chunks below this probability are dropped
 
     # Hybrid Search
     enable_hybrid_search: bool = True

@@ -7,16 +7,16 @@ Provides semantic search and question answering over uploaded documents.
 import asyncio
 import logging
 import re
-import uuid
 from functools import lru_cache
 from typing import Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
-from app.core.auth import get_api_key
+from app.core.auth import check_document_access, get_api_key
 from app.core.config import settings
 from app.core.ratelimit import default_limit, limiter
+from app.services import jev
 from app.services.generation.generation_service import GenerationService
 from app.services.observability.trace_service import TraceService
 from app.services.observability.trace_storage import TraceStorage
@@ -249,6 +249,7 @@ async def query_documents(
     generator: GenerationService = Depends(get_generation_service),
 ):
     """Query uploaded documents with a question."""
+    check_document_access(query_request.document_id, request)
     # Use configured top_k or request value
     base_top_k = query_request.top_k or settings.top_k_retrieval
     top_k = base_top_k
@@ -268,7 +269,7 @@ async def query_documents(
         cached = _retrieval_cache[cache_key]
         logger.info(f"Cache hit for query on {query_request.document_id}")
         return QueryResponse(
-            trace_id=str(uuid.uuid4()),
+            trace_id=cached["trace_id"],  # the trace of the run that produced this answer
             question=query_request.question,
             answer=cached["answer"],
             sources=cached["sources"],
@@ -282,11 +283,25 @@ async def query_documents(
     trace_service = TraceService()
     trace_id = trace_service.start_trace(query_request.question)
 
+    # Step 0: Jev query analysis — input guardrails + decompose/rewrite decisions in one call.
+    # None when Jev is unavailable: services then fall back to their heuristics.
+    analysis = await asyncio.to_thread(jev.analyze_query, query_request.question, user_api_key)
+    if analysis:
+        trace_service.add_metadata("jev_query_analysis", analysis.scores)
+        if analysis.blocked:
+            logger.warning(f"Query blocked by Jev input guard: {analysis.scores}")
+            raise HTTPException(status_code=400, detail="This question was blocked by the safety filter.")
+
     try:
         # Step 1: Decompose query (fallback to original question on failure)
         trace_service.start_timer("decomposition")
         try:
-            sub_queries = decomposer.decompose(query_request.question, api_key=user_api_key, model=user_model)
+            sub_queries = decomposer.decompose(
+                query_request.question,
+                api_key=user_api_key,
+                model=user_model,
+                needed=analysis.needs_decomposition if analysis else None,
+            )
         except Exception as e:
             logger.warning(f"Query decomposition failed, using original question: {e}")
             sub_queries = [query_request.question]
@@ -298,14 +313,25 @@ async def query_documents(
         all_chunks = []
         all_formatted_chunks = []
 
+        # Rewrite decisions: reuse the analysis for the original question,
+        # ask Jev once for all sub-queries after decomposition.
+        if is_overview:
+            rewrite_needed = [False] * len(sub_queries)
+        elif sub_queries == [query_request.question]:
+            rewrite_needed = [analysis.needs_rewrite if analysis else None]
+        else:
+            rewrite_needed = await asyncio.to_thread(
+                jev.rewrite_decisions, query_request.question, sub_queries, user_api_key
+            ) or [None] * len(sub_queries)
+
         # Step 2: Process each sub-query
-        for q in sub_queries:
+        for q, needs_rewrite in zip(sub_queries, rewrite_needed):
             logger.debug(f"Processing sub-query: {q}")
 
             # Step 2a: Rewrite (fallback to sub-query on failure)
             trace_service.start_timer("rewrite")
             try:
-                rewritten_query = rewriter.rewrite(q, api_key=user_api_key, model=user_model)
+                rewritten_query = rewriter.rewrite(q, api_key=user_api_key, model=user_model, needed=needs_rewrite)
             except Exception as e:
                 logger.warning(f"Query rewrite failed for '{q}', using original: {e}")
                 rewritten_query = q
@@ -324,11 +350,16 @@ async def query_documents(
             # Step 2c: Retrieval for each expanded query
             for eq in expanded_queries:
                 trace_service.start_timer("retrieval")
+                # Jev reranks against the sub-question (natural language), not the
+                # keyword rewrite; overview questions keep a document-wide spread instead.
                 result = await asyncio.to_thread(
                     retriever.search,
                     query_request.document_id,
                     eq,
                     top_k,
+                    use_reranking=False if is_overview else None,
+                    rerank_query=q,
+                    api_key=user_api_key,
                 )
                 matches = result.get("matches", [])
                 trace_service.end_timer("retrieval")
@@ -392,10 +423,14 @@ async def query_documents(
 
         # Safety check
         if not retrieved_chunks:
+            answer = "I could not find relevant information in the document."
+            trace_service.set_response(answer)
+            if settings.trace_enabled:
+                TraceStorage.save(trace_service.get_trace())
             return QueryResponse(
                 trace_id=trace_id,
                 question=query_request.question,
-                answer="I could not find relevant information in the document.",
+                answer=answer,
                 sources=[],
             )
 
@@ -424,6 +459,11 @@ async def query_documents(
                 api_key=user_api_key,
                 model=user_model,
             )
+            answer, guard_scores = await asyncio.to_thread(
+                jev.guard_answer, query_request.question, retrieved_chunks, answer, user_api_key
+            )
+            if guard_scores:
+                trace_service.add_metadata("jev_answer_guard", guard_scores)
             trace_service.set_response(answer)
         except Exception as e:
             logger.error(f"Generation failed: {str(e)}")
@@ -448,7 +488,7 @@ async def query_documents(
 
         # Don't cache failures, otherwise a transient LLM error sticks forever
         if not generation_failed:
-            _retrieval_cache[cache_key] = {"answer": answer, "sources": sources}
+            _retrieval_cache[cache_key] = {"answer": answer, "sources": sources, "trace_id": trace_id}
             if len(_retrieval_cache) > 128:
                 _retrieval_cache.pop(next(iter(_retrieval_cache)))
 

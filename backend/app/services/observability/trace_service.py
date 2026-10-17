@@ -102,8 +102,6 @@ class TraceService:
 
     def add_metadata(self, key: str, value: Any):
         """Add arbitrary metadata to trace."""
-        if not hasattr(self.trace, "metadata"):
-            self.trace.metadata = {}
         self.trace.metadata[key] = value
 
     def set_final_context(self, context: str):

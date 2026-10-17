@@ -13,7 +13,7 @@ import faiss
 
 from app.core.config import settings
 from app.services.embedding.shared_model import get_shared_embedding_model
-from app.services.reranking import RerankingService
+from app.services.jev import JevReranker
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class RetrievalService:
         """Initialize retrieval service."""
         logger.debug("Initializing RetrievalService")
         self.model = get_shared_embedding_model()
-        self.reranker = RerankingService() if settings.use_reranking else None
+        self.reranker = JevReranker() if settings.use_reranking else None
 
     def _load_index(self, document_id: str):
         """
@@ -134,6 +134,8 @@ class RetrievalService:
         query: str,
         top_k: int = 3,
         use_reranking: Optional[bool] = None,
+        rerank_query: Optional[str] = None,
+        api_key: Optional[str] = None,
     ) -> dict[str, Any]:
         """
         Performs semantic search inside ONE document using FAISS.
@@ -147,6 +149,8 @@ class RetrievalService:
             query: Search query string
             top_k: Number of results to return
             use_reranking: Override global reranking setting (None = use global)
+            rerank_query: Question the reranker judges relevance against (default: query)
+            api_key: Optional user OpenRouter key for the Jev reranker
 
         Returns:
             Dict with search results and ranking metadata
@@ -214,13 +218,17 @@ class RetrievalService:
         )
 
         # Apply reranking if enabled
+        rerank_result = None
         if should_rerank and self.reranker and len(initial_results) > 1:
             rerank_result = self.reranker.rerank(
-                query=query,
+                query=rerank_query or query,
                 chunks=initial_results,
                 top_k=top_k,
                 return_all=False,
+                api_key=api_key,
             )
+
+        if rerank_result is not None:
 
             # Normalize reranker output: RankedItem.to_dict() uses 'content',
             # but the rest of the pipeline expects 'chunk_text'

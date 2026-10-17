@@ -69,6 +69,9 @@ def clean_env(monkeypatch):
     # Set test environment
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+    # Never call the real Jev API from tests (tests that need it mock `jev.decide`)
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "jev_enabled", False)
 
 
 @pytest.fixture

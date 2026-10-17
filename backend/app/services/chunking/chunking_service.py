@@ -10,9 +10,8 @@ logger = logging.getLogger(__name__)
 _LIST_ITEM_RE = re.compile(r"^\s*([•\u2022\u25E6\-\u2023\u25C7\u25C8\u2022]|\d+\.|\d+\))\s+")
 _HEADING_KEYWORDS = re.compile(
     r"\b(Experience|Education|Skills|Projects|Certifications|Summary|Profile|"
-    r"Contact|Resume|Work History|Expleo|Portfolio|Kaggle|Github|Email|Mobile|"
-    r"Sentiment Analysis|ResNet|Brain Tumor|Hand Gesture|KNN|SVM|Decision Tree|"
-    r"RAG|Data Augmentation|Test Cases|Automation)\b",
+    r"Contact|Resume|Work History|Introduction|Overview|Background|Methods?|"
+    r"Results|Discussion|Conclusions?|References|Appendix|Abstract)\b",
     re.IGNORECASE,
 )
 _SECTION_HEADING_RE = re.compile(
@@ -160,117 +159,45 @@ class ChunkingService:
         return chunks
 
     def _chunk_section(self, text: str, document_id: str, fname: str, page_number: int, start_counter: int) -> list:
-        """Chunk a single section of text using sentence boundaries with overlap."""
+        """Pack sentences into chunks of up to chunk_size characters, overlapping by up to chunk_overlap."""
+        sentences = self._split_into_sentences(text) or ([text.strip()] if text.strip() else [])
         chunks = []
-        text_length = len(text)
         counter = start_counter
-
-        sentences = self._split_into_sentences(text)
-
-        if not sentences:
-            if text.strip():
-                chunk_id = f"{document_id}_chunk_{counter}"
-                chunks.append({
-                    "chunk_id": chunk_id,
-                    "file_name": fname,
-                    "document_id": document_id,
-                    "page_number": page_number,
-                    "chunk_text": text,
-                    "char_start": 0,
-                    "char_end": text_length,
-                })
-            return chunks
-
-        current_chunk_sentences: list[str] = []
-        current_chunk_len = 0
         chunk_start = 0
-        last_sentence_end = 0
+        current: list[str] = []
 
-        for _i, sentence in enumerate(sentences):
-            sentence_len = len(sentence)
-
-            if current_chunk_len + sentence_len > self.chunk_size and current_chunk_sentences:
-                chunk_text = "".join(current_chunk_sentences)
-                chunk_id = f"{document_id}_chunk_{counter}"
-
-                chunks.append({
-                    "chunk_id": chunk_id,
-                    "file_name": fname,
-                    "document_id": document_id,
-                    "page_number": page_number,
-                    "chunk_text": chunk_text,
-                    "char_start": chunk_start,
-                    "char_end": chunk_start + len(chunk_text),
-                })
-
-                counter += 1
-
-                overlap_len = 0
-                overlap_text = ""
-                for sent in reversed(current_chunk_sentences):
-                    if overlap_len + len(sent) <= self.chunk_overlap:
-                        overlap_text = sent + overlap_text
-                        overlap_len += len(sent)
-                    else:
-                        break
-
-                current_chunk_sentences = [overlap_text] if overlap_text.strip() else []
-                current_chunk_len = len(overlap_text)
-                chunk_start = chunk_start + len(chunk_text) - overlap_len
-
-            current_chunk_sentences.append(sentence)
-            current_chunk_len += sentence_len
-            last_sentence_end = chunk_start + current_chunk_len
-
-        if current_chunk_sentences:
-            chunk_text = "".join(current_chunk_sentences)
-            chunk_id = f"{document_id}_chunk_{counter}"
+        def emit(sents: list[str]) -> str:
+            chunk_text = " ".join(sents)
             chunks.append({
-                "chunk_id": chunk_id,
+                "chunk_id": f"{document_id}_chunk_{counter}",
                 "file_name": fname,
                 "document_id": document_id,
                 "page_number": page_number,
                 "chunk_text": chunk_text,
                 "char_start": chunk_start,
-                "char_end": last_sentence_end,
+                "char_end": chunk_start + len(chunk_text),
             })
+            return chunk_text
 
+        for sentence in sentences:
+            if current and len(" ".join(current + [sentence])) > self.chunk_size:
+                chunk_text = emit(current)
+                counter += 1
+                # Carry the trailing sentences that fit in chunk_overlap into the next chunk
+                overlap: list[str] = []
+                for sent in reversed(current):
+                    if len(" ".join([sent] + overlap)) > self.chunk_overlap:
+                        break
+                    overlap.insert(0, sent)
+                chunk_start += len(chunk_text) - len(" ".join(overlap))
+                current = overlap
+            current.append(sentence)
+
+        if current:
+            emit(current)
         return chunks
 
     def _split_into_sentences(self, text: str) -> list[str]:
-        sentences = []
-        current = []
-        i = 0
-
-        while i < len(text):
-            current.append(text[i])
-
-            if text[i] in '.!?':
-                if i + 1 < len(text) and text[i + 1] in '.!?':
-                    i += 1
-                    current.append(text[i])
-
-                if i + 1 < len(text) and text[i + 1] in ' \t\n':
-                    sentence = ''.join(current).strip()
-                    if sentence:
-                        sentences.append(sentence + text[i])
-                    current = []
-                    i += 1
-                    while i < len(text) and text[i] in ' \t\n':
-                        i += 1
-                    continue
-
-            elif text[i] == '\n' and i + 1 < len(text) and text[i + 1] == '\n':
-                sentence = ''.join(current).strip()
-                if sentence:
-                    sentences.append(sentence)
-                current = []
-
-            i += 1
-
-        if current:
-            sentence = ''.join(current).strip()
-            if sentence:
-                sentences.append(sentence)
-
-        return sentences
+        """Split at ., ! or ? (runs like '?!' kept together) followed by whitespace, or at blank lines."""
+        parts = re.split(r"(?<=[.!?])\s+|\n\s*\n", text)
+        return [p.strip() for p in parts if p and p.strip()]

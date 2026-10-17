@@ -40,6 +40,6 @@ swap_size_mb = 512
     hard_limit = 100
 
 [[vm]]
-  memory = "256mb"
+  memory = "1gb"  # torch + the embedding model need ~1 GB; 256 MB runs out of memory
   cpu_kind = "shared"
   cpus = 1

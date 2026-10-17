@@ -14,10 +14,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
-from app.core.auth import get_api_key
+from app.core.auth import check_document_access, get_api_key, get_optional_user_id
 from app.core.config import settings
+from app.core.exceptions import IngestionError
 from app.core.ratelimit import default_limit, limiter
-from app.services.generic.file_storage import save_raw_file
+from app.services.generic.file_storage import save_owner, save_raw_file
 from app.services.ingestion.ingestion_service import ingest, remove_document_files
 
 logger = logging.getLogger(__name__)
@@ -154,6 +155,10 @@ async def ingest_document(
             filename=safe_filename,
             content=content,
         )
+        # Logged-in uploads are private to their owner; anonymous ones stay open
+        user_id = get_optional_user_id(request)
+        if user_id:
+            save_owner(document_id, user_id)
 
         # Trigger ingestion pipeline off the event loop
         await asyncio.get_running_loop().run_in_executor(
@@ -169,20 +174,25 @@ async def ingest_document(
             message="Document processed successfully",
         )
 
-    except ValueError as e:
-        logger.warning(f"Validation error during ingestion: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e)) from None
+    except IngestionError as e:
+        # A ValueError underneath means bad input (e.g. a scanned PDF): show its message
+        if isinstance(e.__cause__, ValueError):
+            logger.warning(f"Validation error during ingestion: {e.__cause__}")
+            raise HTTPException(status_code=400, detail=str(e.__cause__)) from None
+        logger.exception(f"Ingestion failed for {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process document") from None
     except Exception as e:
         logger.exception(f"Ingestion failed for {document_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to process document") from None
 
 
 @router.get("/{document_id}")
-async def get_document(document_id: str):
+async def get_document(document_id: str, request: Request):
     """Get document metadata by ID."""
     # Validate document_id format
     if not re.match(r"^[a-f0-9-]{36}$", document_id):
         raise HTTPException(status_code=400, detail="Invalid document ID format")
+    check_document_access(document_id, request)
 
     # Check if document exists
     raw_dir = settings.raw_dir / document_id
@@ -199,13 +209,14 @@ async def get_document(document_id: str):
 
 
 @router.delete("/{document_id}")
-async def delete_document(document_id: str, _: str = Depends(get_api_key)):
+async def delete_document(document_id: str, request: Request, _: str = Depends(get_api_key)):
     """Delete a document and its embeddings."""
     import shutil
 
     # Validate document_id format
     if not re.match(r"^[a-f0-9-]{36}$", document_id):
         raise HTTPException(status_code=400, detail="Invalid document ID format")
+    check_document_access(document_id, request)
 
     # Delete raw file
     raw_dir = settings.raw_dir / document_id

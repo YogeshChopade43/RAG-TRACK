@@ -74,7 +74,7 @@ const PremiumFileUpload = ({ onFileSelect, isUploading, error, disabled }) => {
           type="file"
           ref={fileInputRef}
           onChange={handleFileInput}
-          accept=".pdf,.txt,.doc,.docx,.md,.rtf"
+          accept=".pdf,.txt"
           style={{ display: "none" }}
           disabled={isUploading || disabled}
           aria-label="Upload document file"
@@ -119,7 +119,7 @@ const PremiumFileUpload = ({ onFileSelect, isUploading, error, disabled }) => {
                 exit={{ opacity: 0, scale: 0.95 }}
               >
                 <p className="upload-message highlight">Release to upload</p>
-                <p className="upload-subtext">Supported: PDF, TXT, DOC, DOCX, MD, RTF</p>
+                <p className="upload-subtext">Supported: PDF, TXT (max 10 MB)</p>
               </Motion.div>
             ) : (
               <Motion.div

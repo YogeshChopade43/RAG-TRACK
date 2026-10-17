@@ -140,7 +140,7 @@ function App() {
       }
 
       const answer = queryData.answer || "";
-      setMessages((prev) => [...prev, { role: "assistant", content: answer, traceId: queryData.trace_id }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: answer, traceId: queryData.trace_id, sources: queryData.sources || [] }]);
     } catch (err) {
       setError("Error: " + err.message);
       setMessages((prev) => prev.slice(0, -1));

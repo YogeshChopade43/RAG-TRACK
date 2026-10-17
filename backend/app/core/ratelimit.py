@@ -21,9 +21,16 @@ def get_client_ip(request: Request) -> Optional[str]:
     """Extract client IP from request for rate limiting."""
     if RateLimiterConfig.is_exempt(request):
         return None
+    # Fly.io's proxy sets this to the real client IP; clients cannot override it
+    fly_ip = request.headers.get("Fly-Client-IP")
+    if fly_ip:
+        return fly_ip.strip()
+    # Clients can prepend anything to X-Forwarded-For; only the last entry
+    # (appended by our own reverse proxy) is trustworthy.
+    # ponytail: assumes exactly one proxy hop; with a proxy chain, count hops instead
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        return forwarded.split(",")[-1].strip()
     return get_remote_address(request)
 
 

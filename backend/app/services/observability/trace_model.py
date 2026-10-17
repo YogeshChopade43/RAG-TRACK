@@ -74,3 +74,6 @@ class TraceModel(BaseModel):
 
     # Errors
     error: Optional[str] = None
+
+    # Extra stage data (e.g. Jev decision scores)
+    metadata: dict[str, Any] = Field(default_factory=dict)

@@ -104,6 +104,7 @@ class PipelineEvaluator:
                         eq,
                         top_k=self.top_k,
                         use_reranking=self.use_reranking,
+                        rerank_query=sq,
                     )
                     matches = result.get("matches", [])
                     all_matches.extend(matches)

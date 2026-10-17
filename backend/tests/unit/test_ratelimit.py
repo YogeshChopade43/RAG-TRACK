@@ -17,10 +17,18 @@ class TestRateLimit:
 
         # Create mock request with forwarded header
         request = Mock(spec=Request)
-        request.headers = {"X-Forwarded-For": "192.168.1.100, 10.0.0.1"}
+        request.headers = {"X-Forwarded-For": "6.6.6.6, 192.168.1.100"}
 
         ip = get_client_ip(request)
-        assert ip == "192.168.1.100"
+        assert ip == "192.168.1.100"  # spoofed first entry ignored; proxy-appended last entry used
+
+    def test_get_client_ip_prefers_fly_client_ip(self):
+        from app.core.ratelimit import get_client_ip
+
+        request = Mock(spec=Request)
+        request.headers = {"Fly-Client-IP": "203.0.113.7", "X-Forwarded-For": "6.6.6.6"}
+
+        assert get_client_ip(request) == "203.0.113.7"
 
     def test_get_client_ip_single_forwarded(self):
         """Test single IP in X-Forwarded-For."""

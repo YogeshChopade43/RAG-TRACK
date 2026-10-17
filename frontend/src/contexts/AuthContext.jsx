@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 
 const AuthContext = createContext(null);
 const API_BASE = import.meta.env.VITE_API_URL || "";
+// Access tokens expire after 30 minutes; refresh well before that
+const REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -174,6 +176,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, [refreshToken, saveTokens, clearTokens]);
 
+  // Refresh on login/page load (a stored token may already be expired) and then
+  // periodically. The ref keeps the interval from restarting on every new token.
+  const refreshRef = useRef(refreshTokenFn);
+  useEffect(() => {
+    refreshRef.current = refreshTokenFn;
+  }, [refreshTokenFn]);
+  const isAuthenticated = !!accessToken;
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    refreshRef.current();
+    const id = setInterval(() => refreshRef.current(), REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isAuthenticated]);
+
   const getAuthHeaders = useCallback(() => {
     return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
   }, [accessToken]);
@@ -183,7 +199,7 @@ export const AuthProvider = ({ children }) => {
     accessToken,
     isLoading,
     isInitialized,
-    isAuthenticated: !!accessToken,
+    isAuthenticated,
     login,
     register,
     logout,
