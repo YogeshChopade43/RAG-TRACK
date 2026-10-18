@@ -93,9 +93,9 @@ export function Dropzone({ onUploaded }: { onUploaded(doc: ActiveDocument): void
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          "grid cursor-pointer place-items-center gap-3 rounded-xl border border-dashed bg-card px-6 py-12 text-center transition-colors",
-          "hover:border-primary/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          dragging && "border-primary bg-primary/5",
+          "grid cursor-pointer place-items-center gap-3 rounded-xl border-2 border-dashed border-ink bg-card px-6 py-12 text-center transition-[background-color,box-shadow]",
+          "hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          dragging && "border-solid bg-accent shadow-[5px_5px_0_var(--ink)]",
           uploading && "cursor-default"
         )}
       >
@@ -112,7 +112,9 @@ export function Dropzone({ onUploaded }: { onUploaded(doc: ActiveDocument): void
             if (file) void upload(file);
           }}
         />
-        <FileUp aria-hidden className="size-8 text-primary" />
+        <span aria-hidden className="grid size-12 place-items-center rounded-lg border-2 border-ink bg-primary text-primary-foreground shadow-[2px_2px_0_var(--ink)]">
+          <FileUp className="size-6" />
+        </span>
         {uploading ? (
           <div className="grid w-full max-w-xs gap-2" aria-live="polite">
             <p className="font-medium">Processing document</p>
@@ -123,8 +125,8 @@ export function Dropzone({ onUploaded }: { onUploaded(doc: ActiveDocument): void
           </div>
         ) : (
           <>
-            <p className="font-medium">
-              Drop a document here or <span className="text-primary underline-offset-4">choose a file</span>
+            <p className="font-heading font-semibold">
+              Drop a document here or <span className="text-highlight underline-offset-4">choose a file</span>
             </p>
             <p className="text-sm text-muted-foreground">PDF or TXT · max 10 MB</p>
           </>

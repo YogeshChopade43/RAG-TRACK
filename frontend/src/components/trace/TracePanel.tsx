@@ -54,7 +54,7 @@ export function TracePanel({ traceId }: { traceId: string }) {
       {state.status === "ready" && (
         <Tabs defaultValue="overview" className="gap-0">
           <div className="overflow-x-auto border-b p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <TabsList className="bg-transparent">
+            <TabsList variant="line">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="retrieval">Retrieval · {rankedChunks(state.trace).length}</TabsTrigger>
               <TabsTrigger value="context">Context</TabsTrigger>

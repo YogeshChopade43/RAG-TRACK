@@ -9,7 +9,7 @@ import { SourceChips } from "./SourceChips";
 
 // Styles for rendered markdown; raw HTML in answers is never rendered (react-markdown default)
 const MARKDOWN =
-  "space-y-3 leading-relaxed break-words [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_strong]:font-semibold [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em] [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_a]:text-primary [&_a]:underline";
+  "space-y-3 leading-relaxed break-words [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-5 [&_strong]:font-semibold [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em] [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_a]:text-highlight [&_a]:underline";
 
 const MARKDOWN_COMPONENTS: Components = {
   a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
@@ -25,7 +25,7 @@ export function Message(props: {
 
   if (m.role === "user") {
     return (
-      <div className="ml-auto max-w-[85%] rounded-2xl bg-secondary px-4 py-2.5 whitespace-pre-wrap">
+      <div className="ml-auto max-w-[85%] rounded-xl border-2 border-ink bg-primary px-4 py-2.5 whitespace-pre-wrap text-primary-foreground shadow-[2px_2px_0_var(--ink)]">
         {m.content}
       </div>
     );
@@ -38,7 +38,7 @@ export function Message(props: {
           {[0, 150, 300].map((delay) => (
             <span
               key={delay}
-              className="size-1.5 rounded-full bg-primary motion-safe:animate-bounce"
+              className="size-1.5 rounded-full bg-highlight motion-safe:animate-bounce"
               style={{ animationDelay: `${delay}ms` }}
             />
           ))}
@@ -50,7 +50,7 @@ export function Message(props: {
 
   if (m.status === "error") {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive">
         <AlertCircle aria-hidden className="size-4 shrink-0" />
         <span className="flex-1">{m.error}</span>
         <Button size="sm" variant="outline" onClick={() => props.onRetry(m.id)}>
@@ -62,7 +62,7 @@ export function Message(props: {
   }
 
   return (
-    <article className="rounded-2xl border bg-card px-4 py-3">
+    <article className="rounded-xl border bg-card px-4 py-3">
       <div className={MARKDOWN}>
         {/* Images are dropped: a prompt-injected document could make the model emit an
             image URL that sends text to a third party without a click */}
@@ -94,7 +94,7 @@ export function Message(props: {
               variant="ghost"
               aria-expanded={traceOpen}
               onClick={() => setTraceOpen((o) => !o)}
-              className={cn(traceOpen && "text-primary")}
+              className={cn(traceOpen && "text-highlight")}
             >
               Trace
               <ChevronDown aria-hidden className={cn("transition-transform", traceOpen && "rotate-180")} />

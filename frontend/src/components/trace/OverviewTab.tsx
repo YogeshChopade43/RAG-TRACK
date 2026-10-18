@@ -67,7 +67,7 @@ export function OverviewTab({ trace }: { trace: Trace }) {
                   key={d.label}
                   className={cn(
                     "rounded-md border px-2 py-1 font-mono text-xs",
-                    yes && "border-primary/60 text-primary"
+                    yes && "border-foreground text-highlight"
                   )}
                   title={`yes when ≥ ${d.threshold}`}
                 >

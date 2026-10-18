@@ -22,14 +22,14 @@ export function StepIndicator({ current }: { current: Step }) {
           <li
             key={step.id}
             aria-current={active ? "step" : undefined}
-            className={cn("flex items-center gap-2", active ? "text-foreground" : "text-muted-foreground")}
+            className={cn("flex items-center gap-2", active ? "font-semibold text-foreground" : "text-muted-foreground")}
           >
             <span
               aria-hidden
               className={cn(
-                "grid size-6 place-items-center rounded-full border font-mono text-xs",
-                active && "border-primary text-primary",
-                done && "border-primary bg-primary text-primary-foreground"
+                "grid size-7 place-items-center rounded-full border-2 font-mono text-xs font-bold",
+                active && "border-ink bg-primary text-primary-foreground shadow-[2px_2px_0_var(--ink)]",
+                done && "border-ink bg-foreground text-background"
               )}
             >
               {done ? <Check className="size-3.5" /> : i + 1}

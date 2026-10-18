@@ -17,7 +17,7 @@ function ChunkCard({ chunk, rank, reranked }: { chunk: TraceChunk; rank: number;
         <span>
           {/* Without Jev reranking, `score` is the hybrid retrieval score */}
           <span className="text-muted-foreground">{reranked ? "jev " : "retrieval score "}</span>
-          <span className="font-semibold text-primary">{chunk.score.toFixed(2)}</span>
+          <span className="font-semibold text-highlight">{chunk.score.toFixed(2)}</span>
         </span>
         {typeof chunk.original_score === "number" && (
           <span>
@@ -35,7 +35,7 @@ function ChunkCard({ chunk, rank, reranked }: { chunk: TraceChunk; rank: number;
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
-          className="mt-1 text-xs text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          className="mt-1 text-xs text-highlight underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
         >
           {open ? "Show less" : "Show more"}
         </button>

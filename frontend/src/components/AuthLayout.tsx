@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 /** Centred auth card with the logo above it; never stretches to the page height. */
 export function AuthLayout(props: { title: string; description: string; children: ReactNode; footer: ReactNode }) {
   return (
-    <main className="grid min-h-dvh place-items-center px-4 py-10">
+    <main className="grid min-h-dvh place-items-center bg-[radial-gradient(color-mix(in_oklab,var(--ink)_14%,transparent)_1px,transparent_1px)] bg-[size:22px_22px] px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
           <Logo className="text-lg" />
@@ -13,7 +13,7 @@ export function AuthLayout(props: { title: string; description: string; children
         <Card>
           <CardHeader>
             <CardTitle>
-              <h1 className="text-xl font-semibold tracking-tight">{props.title}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{props.title}</h1>
             </CardTitle>
             <CardDescription>{props.description}</CardDescription>
           </CardHeader>
@@ -37,7 +37,7 @@ export function FieldError({ id, children }: { id: string; children?: string }) 
 export function FormAlert({ children }: { children?: string | null }) {
   if (!children) return null;
   return (
-    <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+    <div role="alert" className="rounded-md border-2 border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       {children}
     </div>
   );

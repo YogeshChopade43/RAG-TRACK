@@ -1,16 +1,12 @@
 // Runs before the app bundle so the first paint uses the right theme.
-// Same rules as src/hooks/useTheme.tsx: saved choice, else light OS preference, else dark.
+// Same rule as src/hooks/useTheme.tsx: the saved choice, else light (the default).
 // An external file (not inline) because serve.json's CSP allows only 'self' scripts.
 (function () {
-  var theme;
+  var theme = null;
   try {
     theme = localStorage.getItem("theme");
   } catch (e) {
-    theme = null;
-  }
-  if (theme !== "dark" && theme !== "light") {
-    var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-    theme = prefersLight ? "light" : "dark";
+    // storage unavailable (private mode): use the default
   }
   document.documentElement.classList.toggle("dark", theme === "dark");
 })();

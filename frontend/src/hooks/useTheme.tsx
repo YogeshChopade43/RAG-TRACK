@@ -12,8 +12,7 @@ function initialTheme(): Theme {
   } catch {
     // storage unavailable (private mode): fall through
   }
-  // Dark is the default; only an explicit light OS preference changes it
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return "light"; // the default; dark only when chosen with the toggle
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

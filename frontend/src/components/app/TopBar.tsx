@@ -15,7 +15,7 @@ export function TopBar(props: { fileName?: string; onChangeDocument?(): void }) 
   const modelLabel = verified ? model : "Not connected";
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b-2 border-ink bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6">
         <Logo />
         {props.fileName && (

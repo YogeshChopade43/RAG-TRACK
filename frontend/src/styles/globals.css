@@ -3,12 +3,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/lexend";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-sans);
+  --font-heading: "Lexend Variable", var(--font-sans);
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -29,6 +30,8 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --color-success: var(--success);
+  --color-highlight: var(--highlight);
+  --color-ink: var(--ink);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -36,52 +39,84 @@
   --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-/* Light theme: zinc neutrals; emerald-700 accent because emerald-500 text is
-   only ~2.5:1 on white (WCAG AA needs 4.5:1, see contrast.test.ts) */
+/* Light theme (default), Leapcell-inspired: warm off-white paper, black ink,
+   yellow fills. Yellow is a fill only (black text on it); accent TEXT uses
+   --highlight (orange-700) because yellow text is ~1.5:1 on paper. See contrast.test.ts */
 :root {
-  --background: #ffffff;
-  --foreground: #09090b;
+  --background: #fdfbf2;
+  --foreground: #030712;
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #030712;
   --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #047857;
-  --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #52525b;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
+  --popover-foreground: #030712;
+  --primary: #facc15;
+  --primary-foreground: #030712;
+  --secondary: #f3eedb;
+  --secondary-foreground: #030712;
+  --muted: #f3eedb;
+  --muted-foreground: #57534e;
+  --accent: #fef3c7;
+  --accent-foreground: #030712;
   --destructive: #dc2626;
   --success: #047857;
-  --border: #e4e4e7;
-  --input: #d4d4d8;
-  --ring: #059669;
-  --radius: 0.625rem;
+  --highlight: #c2410c;
+  --border: #d9d3bf;
+  --input: #030712;
+  --ring: #c2410c;
+  --ink: #030712;
+  --marker: color-mix(in oklab, var(--primary) 90%, transparent);
+  --radius: 0.5rem;
 }
 
-/* Dark theme (default): near-black zinc, single emerald accent */
+/* Dark variant of the same style: warm near-black, same yellow, light-grey ink */
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #18181b;
-  --card-foreground: #fafafa;
-  --popover: #18181b;
-  --popover-foreground: #fafafa;
-  --primary: #10b981;
-  --primary-foreground: #052e16;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #ef4444;
+  --background: #0c0a09;
+  --foreground: #fafaf9;
+  --card: #1c1917;
+  --card-foreground: #fafaf9;
+  --popover: #1c1917;
+  --popover-foreground: #fafaf9;
+  --primary: #facc15;
+  --primary-foreground: #030712;
+  --secondary: #292524;
+  --secondary-foreground: #fafaf9;
+  --muted: #292524;
+  --muted-foreground: #a8a29e;
+  --accent: #292524;
+  --accent-foreground: #fafaf9;
+  --destructive: #f87171;
   --success: #34d399;
-  --border: #27272a;
-  --input: #3f3f46;
-  --ring: #10b981;
+  --highlight: #fb923c;
+  --border: #3a3532;
+  --input: #d6d3d1;
+  --ring: #fb923c;
+  --ink: #d6d3d1;
+  /* light text sits on the stripe here, so keep it dim */
+  --marker: color-mix(in oklab, var(--primary) 32%, transparent);
+}
+
+/* Neo-brutalist pieces: 2px ink outline + hard offset shadow (no blur) */
+@utility brutal {
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+@utility brutal-sm {
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+/* Pressable: the element slides into its shadow on hover/press */
+@utility brutal-press {
+  transition: translate 120ms ease, box-shadow 120ms ease;
+  &:hover:not(:disabled) {
+    translate: 2px 2px;
+    box-shadow: 0 0 0 var(--ink);
+  }
+}
+/* Highlighter-pen stripe behind the lower half of the text */
+@utility marker {
+  background-image: linear-gradient(transparent 58%, var(--marker) 58% 92%, transparent 92%);
+  box-decoration-break: clone;
+  padding-inline: 0.1em;
 }
 
 @layer base {
@@ -97,6 +132,11 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
   }
 }
 

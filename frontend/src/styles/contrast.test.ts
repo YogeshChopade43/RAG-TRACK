@@ -27,9 +27,11 @@ const PAIRS: [string, string][] = [
   ["foreground", "background"],
   ["muted-foreground", "background"],
   ["muted-foreground", "card"],
-  ["primary", "background"], // accent text: scores, links, highlighted steps
-  ["primary", "card"],
-  ["primary-foreground", "primary"], // text on primary buttons
+  ["highlight", "background"], // accent text: scores, links, highlighted steps
+  ["highlight", "card"],
+  ["primary-foreground", "primary"], // black text on yellow buttons, bubbles, chips
+  ["secondary-foreground", "secondary"],
+  ["muted-foreground", "muted"],
   ["success", "background"],
   ["destructive", "background"],
 ];

@@ -27,7 +27,7 @@ export function Composer(props: { disabled: boolean; onSend(text: string): void 
         e.preventDefault();
         send();
       }}
-      className="flex items-end gap-2 rounded-2xl border bg-card p-2 focus-within:border-ring"
+      className="flex items-end gap-2 rounded-xl border-2 border-ink bg-card p-2 shadow-[3px_3px_0_var(--ink)] transition-shadow focus-within:shadow-[5px_5px_0_var(--ink)]"
     >
       <Textarea
         aria-label="Ask about this document"
@@ -36,9 +36,9 @@ export function Composer(props: { disabled: boolean; onSend(text: string): void 
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
-        className="max-h-40 min-h-9 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+        className="max-h-40 min-h-9 resize-none border-0 bg-transparent shadow-none focus-visible:shadow-none focus-visible:ring-0"
       />
-      <Button type="submit" size="icon" aria-label="Send" disabled={!canSend} className="shrink-0 rounded-xl">
+      <Button type="submit" size="icon" aria-label="Send" disabled={!canSend} className="shrink-0">
         <ArrowUp />
       </Button>
     </form>
