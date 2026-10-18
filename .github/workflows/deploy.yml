@@ -55,6 +55,9 @@ jobs:
       - run: npm run build
 
   deploy:
+    # Automatic deploys are paused: pushes only run the tests above.
+    # To deploy, run this workflow manually (Actions tab → "Deploy to Fly.io" → Run workflow).
+    if: github.event_name == 'workflow_dispatch'
     needs: [test, frontend]
     runs-on: ubuntu-latest
     steps:
