@@ -43,7 +43,7 @@ ENV PYTHONUNBUFFERED=1
 COPY backend/ ./backend/
 
 # Do NOT copy .env.example as .env — this would embed hardcoded localhost
-# URLs that override platform-provided environment variables (e.g., Render).
+# URLs that override platform-provided environment variables (e.g., Fly.io secrets).
 # The app reads configuration from environment variables set by the platform
 # or docker-compose. An empty .env is created for pydantic-settings compatibility.
 RUN touch .env

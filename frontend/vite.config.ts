@@ -34,7 +34,7 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: ['rag-track-frontend.onrender.com', 'localhost'],
+    allowedHosts: ['localhost'],
   },
   test: {
     environment: 'jsdom',

@@ -69,3 +69,31 @@ class TestMainApp:
         """Test FastAPI app title is set."""
         from app.main import app
         assert app.title == "RAG-TRACK" or hasattr(app, 'title')
+
+
+class TestSecurityHeaders:
+    """Every response carries browser security headers; they protect the
+    OpenRouter key users keep in sessionStorage from injected scripts."""
+
+    @pytest.fixture
+    def client(self, mock_client):
+        return mock_client
+
+    def test_strict_csp_on_app_responses(self, client):
+        csp = client.get("/health").headers["Content-Security-Policy"]
+        assert "script-src 'self'" in csp
+        assert "'unsafe-eval'" not in csp
+        assert "connect-src 'self'" in csp
+        assert "frame-ancestors 'none'" in csp
+        assert "object-src 'none'" in csp
+
+    def test_other_security_headers(self, client):
+        headers = client.get("/health").headers
+        assert headers["X-Content-Type-Options"] == "nosniff"
+        assert headers["Referrer-Policy"] == "no-referrer"
+        assert headers["X-Frame-Options"] == "DENY"
+        assert "max-age=" in headers["Strict-Transport-Security"]
+
+    def test_api_docs_keep_working(self, client):
+        # Swagger UI loads its script from a CDN and runs inline code
+        assert "Content-Security-Policy" not in client.get("/docs").headers

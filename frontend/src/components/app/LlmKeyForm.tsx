@@ -68,7 +68,7 @@ export function LlmKeyForm(props: { submitLabel: string; onVerified(): void }) {
       <p className="text-sm text-muted-foreground">
         Kept only in this browser session. It pays for the chat model you choose and for a few small Jev
         decision calls per question (query checks, ranking passages, answer safety) — usually a fraction of a
-        cent.
+        cent. Tip: use a separate OpenRouter key with a spending limit, so you can revoke it any time.
       </p>
       <Button type="submit" disabled={pending || !key.trim() || !model.trim()}>
         {pending && <Loader2 className="animate-spin" aria-hidden />}

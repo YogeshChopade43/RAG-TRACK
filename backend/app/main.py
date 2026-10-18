@@ -108,6 +108,42 @@ app.add_middleware(
 )
 
 
+# Browser security headers. The CSP matters most: users keep their OpenRouter key in
+# sessionStorage, so any injected script could read it. Only the app's own scripts
+# run, and the page can only talk to this origin.
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",  # toast/radix inject <style>; style injection can't read storage
+        "img-src 'self' data:",
+        "font-src 'self' data:",  # Vite inlines small font subsets as data: URLs
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]
+)
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Strict-Transport-Security": "max-age=31536000",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.update(SECURITY_HEADERS)
+    # Swagger UI / ReDoc load scripts from a CDN and run inline code
+    if not request.url.path.startswith(("/docs", "/redoc")):
+        response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+    return response
+
+
 # Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
