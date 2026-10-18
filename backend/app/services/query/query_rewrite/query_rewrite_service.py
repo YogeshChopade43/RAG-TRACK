@@ -102,7 +102,8 @@ class QueryRewriteService:
             return True
 
         # contains pronouns
-        if any(p in q for p in self.pronouns):
+        # whole words only: "he" must not match "the"/"where", "it" not "with"
+        if re.search(r"\b(" + "|".join(self.pronouns) + r")\b", q):
             return True
 
         # conversational phrasing
@@ -171,6 +172,7 @@ class QueryRewriteService:
             # fallback if rewrite failed or it became a generic/unhelpful query
             if (
                 not cleaned
+                or len(cleaned.split()) < 2  # "Who is Yogesh?" -> "Yogesh" loses the intent
                 or cleaned.lower() == question.lower()
                 or "any document" in cleaned.lower()
                 or cleaned.lower() in ("the document", "this document", "document")

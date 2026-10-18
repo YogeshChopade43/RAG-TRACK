@@ -187,6 +187,7 @@ class Settings(BaseSettings):
 
     # Observability
     trace_enabled: bool = True
+    trace_retention_days: int = 7  # traces hold document text; 0 = keep forever
     trace_storage_path: str = "backend/traces"
 
     # Logging

@@ -4,6 +4,7 @@ RAG-TRACK FastAPI Application.
 Main application entry point with middleware, routing, and observability.
 """
 
+import asyncio
 import logging
 import os
 import uuid
@@ -60,9 +61,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.vector_store_dir.mkdir(parents=True, exist_ok=True)
 
+    cleanup_task = (
+        asyncio.create_task(_trace_cleanup_loop()) if settings.trace_retention_days > 0 else None
+    )
+
     yield
 
+    if cleanup_task:
+        cleanup_task.cancel()
     logger.info("Shutdown complete")
+
+
+async def _trace_cleanup_loop() -> None:
+    """Delete traces older than TRACE_RETENTION_DAYS now and then once a day (they contain document text)."""
+    from app.services.observability.trace_storage import TraceStorage
+
+    while True:
+        try:
+            await asyncio.to_thread(TraceStorage.cleanup_old_traces, settings.trace_retention_days)
+        except Exception as e:
+            logger.warning(f"Trace cleanup failed: {e}")
+        await asyncio.sleep(24 * 3600)
 
 
 # Create FastAPI app

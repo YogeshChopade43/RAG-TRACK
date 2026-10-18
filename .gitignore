@@ -17,7 +17,11 @@ venv/
 htmlcov/
 .coverage.*
 .pytest_cache/
+# Generated JSON (eval reports, traces, data). Source-controlled JSON is re-included below.
 *.json
+!frontend/tsconfig*.json
+!frontend/components.json
+!frontend/src/test/fixtures/*.json
 
 # =========================
 # Node / React
@@ -66,3 +70,7 @@ INFO.md
 podman-*.pid
 container-*.json
 .containers/
+# Brainstorming visual companion files
+.superpowers/
+.playwright-mcp/
+docs/

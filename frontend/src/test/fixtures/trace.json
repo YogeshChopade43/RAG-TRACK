@@ -1,0 +1,211 @@
+{
+  "trace_id": "aeb92cf9-25f6-4b9d-8ef9-3c5a3b8c3433",
+  "timestamp": "2026-10-17 20:11:31.923400",
+  "original_query": "Who is Yogesh ?",
+  "rewritten_query": "Yogesh",
+  "decomposed_queries": [
+    "Who is Yogesh ?"
+  ],
+  "retrieved_chunks": [
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_1",
+      "content": "Yogesh Chopade AI / GenAI Engineer (Backend & ML Systems) Portfolio: Portfolio Kaggle: Kaggle.com/YogeshChopade Github: github.com/YogeshChopade43 Email: jane@example.com Mobile: +00-0000000000",
+      "score": 0.92,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1
+      }
+    }
+  ],
+  "bm25_results": [
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_1",
+      "content": "Yogesh Chopade AI / GenAI Engineer (Backend & ML Systems) Portfolio: Portfolio Kaggle: Kaggle.com/YogeshChopade Github: github.com/YogeshChopade43 Email: jane@example.com Mobile: +00-0000000000",
+      "score": 2.4302,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": true,
+        "structural_type": "paragraph",
+        "reading_order": 0,
+        "heading_hierarchy": []
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_2",
+      "content": "EDUCATION MIT Academy of Engineering Alandi Pune, India Bachelor of Technology in Electronics and TelecommunicationGPA: 8.88 2021 2025",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 1,
+        "heading_hierarchy": [
+          "EDUCATION"
+        ]
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_3",
+      "content": "SKILLS Languages: Python, SQL, C ML/AI: Machine Learning, NLP, Computer Vision, Time-Series Forecasting Generative AI: Large Language Models (LLMs), RAG, LangChain, LangGraph, Hugging Face, Vector Databases Backend & APIs: FastAPI, REST APIs Frontend & Visualization: React, Streamlit ML Libraries: Scikit-learn, PyTorch, LightGBM, Pandas, NumPy Tools: Git, Docker, Jupyter, Google Colab, VSCode Data Structures & Algorithms: Arrays, Hashing, Linked Lists, Trees, Sorting, Recursion",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 2,
+        "heading_hierarchy": [
+          "SKILLS"
+        ]
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_4",
+      "content": "Experience Expleo Group On-site AI Engineer (Full-time) Sept 2025 Present ∗ AI-assisted test framework migration using Large Language Models (LLMs) to convert 6000 Selenium (Java) test cases to Playwright (Java/Python), improving migration speed and consistency.",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 3,
+        "heading_hierarchy": [
+          "Experience"
+        ]
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_5",
+      "content": "∗ Achieved 75% faster execution time with Playwright compared to Selenium and enabled near-complete automated conversion of simple test cases (5-6 tests converted in 3-5 minutes), with minimal manual intervention.",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 4,
+        "heading_hierarchy": [
+          "Experience"
+        ]
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_6",
+      "content": "Expleo Group On-site AI/ML Engineer Intern (Full-time, Internship) Feb 2025 Aug 2025 Project: CNC Alarm Aggregator for Predictive Maintenance ∗ Worked on ML and Generative AI systems for CNC machine predictive maintenance and enterprise knowledge retrieval.",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 5,
+        "heading_hierarchy": [
+          "Experience"
+        ]
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_7",
+      "content": "∗ Designed and trained time-series ML models on CNC sensor data to support predictive maintenance and early fault detection. ∗ Implemented a Retrieval-Augmented Generation (RAG) system using LangChain and vector databases to enable contextual querying of maintenance manuals and logs.",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 6,
+        "heading_hierarchy": [
+          "Experience"
+        ]
+      }
+    },
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_8",
+      "content": "∗ Integrated ML and RAG pipelines into FastAPI-based REST services for consumption by internal applications. ∗ Collaborated with cross-functional teams to align ML outputs with operational maintenance workflows.",
+      "score": 0.0,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": false,
+        "structural_type": "paragraph",
+        "reading_order": 7,
+        "heading_hierarchy": [
+          "Experience"
+        ]
+      }
+    }
+  ],
+  "fusion_details": {
+    "vector_count": 15,
+    "bm25_count": 15,
+    "fused_count": 15,
+    "fusion_weights": {
+      "bm25": 0.5,
+      "vector": 0.5
+    }
+  },
+  "reranked_chunks": [
+    {
+      "chunk_id": "39982e2c-bef4-4983-ad08-dc1ddfb39d2e_chunk_1",
+      "content": "Yogesh Chopade AI / GenAI Engineer (Backend & ML Systems) Portfolio: Portfolio Kaggle: Kaggle.com/YogeshChopade Github: github.com/YogeshChopade43 Email: jane@example.com Mobile: +00-0000000000",
+      "score": 0.92,
+      "metadata": {
+        "file_name": "YogeshChopade_2026.pdf",
+        "page_number": 1,
+        "is_title_block": true,
+        "structural_type": "paragraph",
+        "reading_order": 0,
+        "heading_hierarchy": []
+      },
+      "rank": 1,
+      "final_score": 0.92,
+      "semantic_score": null,
+      "keyword_score": null,
+      "original_score": 0.85,
+      "llm_relevance_score": 0.92
+    }
+  ],
+  "ranking_summary": {
+    "total_candidates": 15,
+    "returned_count": 1,
+    "max_score": 0.92,
+    "min_score": 0.01,
+    "mean_score": 0.08466666666666668,
+    "median_score": 0.02,
+    "score_std": 0.2235431849901838
+  },
+  "ranking_weights": {
+    "jev_relevance": 1.0
+  },
+  "signal_scores": {
+    "jev_relevance": 0.08466666666666668
+  },
+  "final_context": "Yogesh Chopade AI / GenAI Engineer (Backend & ML Systems) Portfolio: Portfolio Kaggle: Kaggle.com/YogeshChopade Github: github.com/YogeshChopade43 Email: jane@example.com Mobile: +00-0000000000",
+  "llm_response": "I could not find the answer in the document.",
+  "llm_provider": "openrouter",
+  "llm_model": "openai/gpt-4o-mini",
+  "llm_temperature": 0.0,
+  "llm_max_tokens": 2000,
+  "llm_timeout_seconds": 60,
+  "latency": {
+    "decomposition": 0.0,
+    "rewrite": 2303.61,
+    "retrieval": 568.03,
+    "generation": 1686.55
+  },
+  "error": null,
+  "metadata": {
+    "jev_query_analysis": {
+      "multi_part": 0.04,
+      "needs_rewrite": 0.78,
+      "jailbreak": 0.04,
+      "harmful_request": 0.02
+    },
+    "jev_answer_guard": {
+      "unsupported": 0.06,
+      "harmful_output": 0.01
+    }
+  }
+}

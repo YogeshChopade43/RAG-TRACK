@@ -2,7 +2,8 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
 from pathlib import Path
 
 from app.core.config import settings
@@ -49,6 +50,10 @@ class TraceStorage:
     def save_error(trace, error: str):
         trace.error = error
         TraceStorage.save(trace)
+
+    @staticmethod
+    def exists(trace_id: str) -> bool:
+        return os.path.exists(os.path.join(TraceStorage._get_traces_dir(), f"{trace_id}.json"))
 
     @staticmethod
     def load(trace_id: str):
@@ -126,7 +131,9 @@ class TraceStorage:
         if not os.path.exists(traces_dir):
             return 0
 
-        cutoff = datetime.utcnow() - timedelta(days=retention_days)
+        # Compare raw epoch seconds: mixing utcnow() with local-time
+        # fromtimestamp() shifted the window by the server's UTC offset
+        cutoff = time.time() - retention_days * 24 * 3600
         removed = 0
 
         for filename in os.listdir(traces_dir):
@@ -134,8 +141,7 @@ class TraceStorage:
                 continue
             file_path = os.path.join(traces_dir, filename)
             try:
-                mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
-                if mtime < cutoff:
+                if os.path.getmtime(file_path) < cutoff:
                     os.unlink(file_path)
                     removed += 1
             except Exception:

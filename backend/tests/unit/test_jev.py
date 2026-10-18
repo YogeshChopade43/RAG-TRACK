@@ -41,13 +41,35 @@ def test_decide_without_key_raises(monkeypatch):
 
 
 def test_reranker_sorts_by_probability_and_drops_irrelevant(jev_on):
-    chunks = [{"chunk_id": f"id{i}", "chunk_text": f"text {i}", "score": 0.5} for i in range(3)]
-    with patch("app.services.jev.decide", return_value={"c0": 0.3, "c1": 0.95, "c2": 0.01}):
+    chunks = [{"chunk_id": f"id{i}", "chunk_text": f"text {i}", "score": 0.5} for i in range(5)]
+    scores = {"c0": 0.3, "c1": 0.95, "c2": 0.01, "c3": 0.02, "c4": 0.6}
+    with patch("app.services.jev.decide", return_value=scores):
         result = jev.JevReranker().rerank("q", chunks, top_k=5)
 
-    assert [it["chunk_id"] for it in result["top_k_items"]] == ["id1", "id0"]  # id2 below min relevance
+    # sorted by probability; past the best MIN_KEEP (3), chunks under 0.1 are dropped
+    assert [it["chunk_id"] for it in result["top_k_items"]] == ["id1", "id4", "id0"]
     assert result["top_k_items"][0]["score"] == 0.95
-    assert result["ranking_summary"]["total_candidates"] == 3
+    assert result["ranking_summary"]["total_candidates"] == 5
+
+
+def test_reranker_keeps_min_chunks_even_when_all_score_low(jev_on):
+    chunks = [{"chunk_id": f"id{i}", "chunk_text": f"text {i}", "score": 0.5} for i in range(4)]
+    scores = {"c0": 0.92, "c1": 0.03, "c2": 0.02, "c3": 0.01}  # e.g. "Who is X?" on a resume
+    with patch("app.services.jev.decide", return_value=scores):
+        result = jev.JevReranker().rerank("q", chunks, top_k=8)
+
+    assert [it["chunk_id"] for it in result["top_k_items"]] == ["id0", "id1", "id2"]
+
+
+def test_reranker_returns_nothing_when_no_chunk_is_relevant(jev_on):
+    # An off-topic question must reach retrieve.py's "could not find" answer
+    # instead of sending irrelevant chunks to the LLM
+    chunks = [{"chunk_id": f"id{i}", "chunk_text": f"text {i}", "score": 0.5} for i in range(4)]
+    scores = {"c0": 0.05, "c1": 0.03, "c2": 0.02, "c3": 0.01}
+    with patch("app.services.jev.decide", return_value=scores):
+        result = jev.JevReranker().rerank("What is the capital of France?", chunks, top_k=8)
+
+    assert result["top_k_items"] == []
 
 
 def test_reranker_returns_none_when_jev_unavailable():

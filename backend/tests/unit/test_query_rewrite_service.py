@@ -57,9 +57,17 @@ class TestQueryRewriteService:
 
     def test_rewrite_calls_llm(self, service):
         """Test rewrite calls LLM for complex queries."""
-        result = service.rewrite("What does the document say about machine learning?")
+        result = service.rewrite("What does the document say about machine learning?", needed=True)
         service.llm.chat.assert_called()
         assert result is not None
+
+    def test_one_word_rewrite_keeps_original(self, service):
+        service.llm.chat.return_value = "Yogesh"
+        assert service.rewrite("Who is Yogesh ?", needed=True) == "Who is Yogesh ?"
+
+    def test_pronouns_match_whole_words_only(self, service):
+        # "the"/"where" contain "he", "with" contains "it": none are pronouns
+        assert service.should_rewrite("where does the candidate list skills with experience") is False
 
     def test_rewrite_falls_back_on_error(self, service):
         """Test rewrite falls back to original on error."""

@@ -60,6 +60,49 @@ def test_full_evaluation_overall_score():
     assert report.overall_score == pytest.approx((1.0 * 0.4 + 0.5 * 0.2) / 0.6)
 
 
+def test_trace_cleanup_loop_deletes_old_traces():
+    import asyncio
+
+    from app.main import _trace_cleanup_loop
+
+    async def run_inline(func, *args):  # no worker thread needed in a test
+        return func(*args)
+
+    with patch(
+        "app.services.observability.trace_storage.TraceStorage.cleanup_old_traces", return_value=0
+    ) as cleanup, patch("app.main.asyncio.to_thread", side_effect=run_inline), \
+            patch("app.main.asyncio.sleep", side_effect=asyncio.CancelledError):
+        coro = _trace_cleanup_loop()
+        with pytest.raises(asyncio.CancelledError):  # stop the loop at its first daily sleep
+            coro.send(None)  # drive the coroutine directly: no event loop, no threads
+
+    # Whatever TRACE_RETENTION_DAYS is configured to (env or .env), not a hard-coded 7
+    from app.core.config import settings
+
+    cleanup.assert_called_once_with(settings.trace_retention_days)
+
+
+def test_trace_cleanup_uses_real_file_age_regardless_of_timezone(tmp_path, monkeypatch):
+    import os
+    import time
+
+    from app.services.observability.trace_storage import TraceStorage
+
+    monkeypatch.setattr(TraceStorage, "_get_traces_dir", staticmethod(lambda: str(tmp_path)))
+    day = 24 * 3600
+    old = tmp_path / "old.json"
+    fresh = tmp_path / "fresh.json"
+    for f in (old, fresh):
+        f.write_text("{}")
+    now = time.time()
+    os.utime(old, (now - 7 * day - 60, now - 7 * day - 60))  # just past 7 days
+    os.utime(fresh, (now - 7 * day + 3600, now - 7 * day + 3600))  # an hour inside 7 days
+
+    assert TraceStorage.cleanup_old_traces(retention_days=7) == 1
+    assert not old.exists()
+    assert fresh.exists()
+
+
 @pytest.fixture
 def owned_document(tmp_path, monkeypatch):
     from app.services.generic import file_storage

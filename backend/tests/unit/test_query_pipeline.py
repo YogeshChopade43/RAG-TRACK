@@ -76,6 +76,23 @@ def test_cache_hit_returns_original_trace_id(services):
     assert second["trace_id"] == first["trace_id"]
 
 
+def test_cache_entry_whose_trace_was_deleted_is_recomputed(services):
+    # Retention cleanup deletes trace files; a cached answer must not hand out a
+    # trace_id that no longer exists (the trace viewer would say "not available")
+    from unittest.mock import patch
+
+    client, _, generator = services
+    generator.generate.return_value = "answer"
+    body = {"document_id": DOC_ID, "question": "what is the budget?"}
+
+    first = client.post("/query", json=body).json()
+    with patch("app.api.retrieve.TraceStorage.exists", return_value=False):
+        second = client.post("/query", json=body).json()
+
+    assert generator.generate.call_count == 2
+    assert second["trace_id"] != first["trace_id"]
+
+
 @pytest.mark.parametrize("query,expected", [
     ("what is this for", False),
     ("how does the work get more funding", False),

@@ -265,8 +265,13 @@ async def query_documents(
         top_k = max(base_top_k, settings.top_k_retrieval * 2)
 
     cache_key = (query_request.document_id, query_request.question.lower(), base_top_k, user_model)
-    if cache_key in _retrieval_cache:
-        cached = _retrieval_cache[cache_key]
+    cached = _retrieval_cache.get(cache_key)
+    # A cached answer is only reusable while its trace still exists: retention
+    # cleanup deletes trace files, and the UI would show "Trace not available"
+    if cached and settings.trace_enabled and not TraceStorage.exists(cached["trace_id"]):
+        _retrieval_cache.pop(cache_key, None)
+        cached = None
+    if cached:
         logger.info(f"Cache hit for query on {query_request.document_id}")
         return QueryResponse(
             trace_id=cached["trace_id"],  # the trace of the run that produced this answer
