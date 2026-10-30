@@ -12,6 +12,7 @@ __pycache__/
 .env.local
 .env.podman
 venv/
+venv311/
 .venv/
 .coverage
 htmlcov/

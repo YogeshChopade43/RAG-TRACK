@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { FileText, LogOut } from "lucide-react";
+import { Activity, FileText, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,7 +12,12 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 /** Account menu. On small screens it also lists the document and model, which the top bar hides. */
-export function UserMenu(props: { fileName?: string; modelLabel: string; onChangeDocument?(): void }) {
+export function UserMenu(props: {
+  fileName?: string;
+  modelLabel: string;
+  onChangeDocument?(): void;
+  onTestDocument?(): void;
+}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const initial = (user?.full_name || user?.email || "?").charAt(0).toUpperCase();
@@ -34,6 +39,12 @@ export function UserMenu(props: { fileName?: string; modelLabel: string; onChang
           <div className="truncate">Model: {props.modelLabel}</div>
         </div>
         <DropdownMenuSeparator />
+        {props.onTestDocument && (
+          <DropdownMenuItem onSelect={props.onTestDocument}>
+            <Activity aria-hidden />
+            Test this document
+          </DropdownMenuItem>
+        )}
         {props.onChangeDocument && (
           // The top bar's document chip (with its change button) is hidden on phones
           <DropdownMenuItem className="sm:hidden" onSelect={props.onChangeDocument}>

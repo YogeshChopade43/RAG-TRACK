@@ -97,9 +97,13 @@ class Settings(BaseSettings):
     rate_limit_burst: int = 10
 
     # File Upload
-    allowed_extensions: Annotated[list[str], NoDecode, BeforeValidator(parse_str_or_list)] = Field(default=["pdf", "txt"])
+    allowed_extensions: Annotated[list[str], NoDecode, BeforeValidator(parse_str_or_list)] = Field(
+        default=["pdf", "txt", "docx", "pptx", "html"]
+    )
     max_file_size_mb: int = 10
     max_file_size_bytes: int = Field(default=10 * 1024 * 1024)
+    # Docling models dir (the container downloads them at build time); unset = Hugging Face cache
+    docling_artifacts_path: Optional[str] = None
 
     @field_validator("max_file_size_bytes", mode="before")
     @classmethod

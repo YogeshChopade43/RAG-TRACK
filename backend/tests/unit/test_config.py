@@ -16,7 +16,7 @@ class TestConfig:
         assert settings.environment in ("development", "test")  # May vary
         assert settings.host == "0.0.0.0"
         assert settings.port == 8000
-        assert settings.allowed_extensions == ["pdf", "txt"]
+        assert settings.allowed_extensions == ["pdf", "txt", "docx", "pptx", "html"]
         assert settings.max_file_size_mb == 10
 
     def test_settings_explicit_values(self):

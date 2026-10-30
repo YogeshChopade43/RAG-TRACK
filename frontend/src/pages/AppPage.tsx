@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Dropzone } from "@/components/app/Dropzone";
 import { ConnectStep, StepIndicator, type Step } from "@/components/app/Onboarding";
 import { TopBar } from "@/components/app/TopBar";
 import { ChatView } from "@/components/chat/ChatView";
+import { DocumentHealth } from "@/components/health/DocumentHealth";
 import { useActiveDocument } from "@/hooks/useActiveDocument";
 import { useLlmSettings } from "@/hooks/useLlmSettings";
 
@@ -9,10 +11,16 @@ export default function AppPage() {
   const { verified } = useLlmSettings();
   const { doc, set: setDoc } = useActiveDocument();
   const step: Step = !verified ? "connect" : !doc ? "upload" : "chat";
+  const [healthOpen, setHealthOpen] = useState(false);
+  const openHealth = step === "chat" ? () => setHealthOpen(true) : undefined;
 
   return (
     <div className="flex min-h-dvh flex-col" data-testid="app-page">
-      <TopBar fileName={doc?.fileName} onChangeDocument={doc ? () => setDoc(null) : undefined} />
+      <TopBar
+        fileName={doc?.fileName}
+        onChangeDocument={doc ? () => setDoc(null) : undefined}
+        onTestDocument={openHealth}
+      />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6">
         {step !== "chat" && <StepIndicator current={step} />}
         {step === "connect" && <ConnectStep />}
@@ -24,7 +32,17 @@ export default function AppPage() {
             <Dropzone onUploaded={setDoc} />
           </section>
         )}
-        {step === "chat" && doc && <ChatView documentId={doc.documentId} fileName={doc.fileName} />}
+        {step === "chat" && doc && (
+          <>
+            <ChatView documentId={doc.documentId} fileName={doc.fileName} onTestDocument={openHealth} />
+            <DocumentHealth
+              open={healthOpen}
+              onOpenChange={setHealthOpen}
+              documentId={doc.documentId}
+              fileName={doc.fileName}
+            />
+          </>
+        )}
       </main>
     </div>
   );

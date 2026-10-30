@@ -49,7 +49,7 @@ class QueryDecompositionService:
                 {query}
                 """
 
-        response = self.llm.chat("", prompt, api_key=api_key, model=model)
+        response = self.llm.chat("", prompt, api_key=api_key, model=model, purpose="decompose")
 
         questions = response.split("\n")
 

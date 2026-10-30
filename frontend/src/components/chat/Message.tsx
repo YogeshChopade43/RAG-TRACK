@@ -5,6 +5,8 @@ import { AlertCircle, ChevronDown, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/hooks/useChat";
 import { cn } from "@/lib/utils";
+import { AnswerMeta } from "./AnswerMeta";
+import { NearMisses } from "./NearMisses";
 import { SourceChips } from "./SourceChips";
 
 // Styles for rendered markdown; raw HTML in answers is never rendered (react-markdown default)
@@ -70,8 +72,10 @@ export function Message(props: {
           {m.content}
         </Markdown>
       </div>
+      {m.answerStatus === "not_found" && <NearMisses items={m.nearMisses ?? []} />}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <SourceChips sources={m.sources} />
+        <AnswerMeta usage={m.usage} cached={m.cached} fallbacks={m.fallbacks} />
         <div className="ml-auto flex gap-1">
           <Button
             size="sm"

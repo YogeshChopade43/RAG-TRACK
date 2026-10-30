@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { Source } from "@/lib/types";
+import type { AnswerStatus, NearMiss, Source, Usage } from "@/lib/types";
 
 export type ChatMessage = {
   id: string;
@@ -12,6 +12,11 @@ export type ChatMessage = {
   error?: string;
   /** For assistant messages: the question it answers (used by Retry). */
   question?: string;
+  cached?: boolean;
+  answerStatus?: AnswerStatus;
+  usage?: Usage | null;
+  nearMisses?: NearMiss[];
+  fallbacks?: string[];
 };
 
 let nextId = 0;
@@ -53,7 +58,17 @@ export function useChat(documentId: string) {
       };
       try {
         const res = await api.query(askedFor, question);
-        update({ status: "done", content: res.answer, sources: res.sources, traceId: res.trace_id });
+        update({
+          status: "done",
+          content: res.answer,
+          sources: res.sources,
+          traceId: res.trace_id,
+          cached: res.cached,
+          answerStatus: res.answer_status,
+          usage: res.usage,
+          nearMisses: res.near_misses,
+          fallbacks: res.fallbacks,
+        });
       } catch (err) {
         update({ status: "error", error: err instanceof Error ? err.message : "Something went wrong" });
       } finally {

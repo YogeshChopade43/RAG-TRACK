@@ -1,4 +1,16 @@
-import type { ApiKeyTest, IngestResponse, QueryResponse, Tokens, Trace, User } from "@/lib/types";
+import type {
+  ApiKeyTest,
+  DocSettings,
+  DocSettingsResponse,
+  IngestResponse,
+  IngestStatus,
+  QueryResponse,
+  StressReport,
+  StressRunSummary,
+  Tokens,
+  Trace,
+  User,
+} from "@/lib/types";
 
 const BASE = import.meta.env.VITE_API_URL || "";
 
@@ -136,8 +148,7 @@ async function request<T>(path: string, opts: RequestOptions = {}, retried = fal
   const data = parseBody(await res.text());
   if (res.ok) return data as T;
 
-  const canRefresh =
-    res.status === 401 && !retried && config.getAccessToken() && !authPath;
+  const canRefresh = res.status === 401 && !retried && config.getAccessToken() && !authPath;
   if (canRefresh && (await refresh())) return request<T>(path, opts, true);
 
   throw new ApiError(res.status, errorMessage(res.status, data));
@@ -161,7 +172,22 @@ export const api = {
     form.append("file", file);
     return request<IngestResponse>("/ingest", { method: "POST", body: form });
   },
+  getIngestStatus: (docId: string) => request<IngestStatus>(`/ingest/${encodeURIComponent(docId)}/status`),
   query: (documentId: string, question: string) =>
     request<QueryResponse>("/query", { method: "POST", json: { document_id: documentId, question } }),
   getTrace: (traceId: string) => request<Trace>(`/query/trace/${encodeURIComponent(traceId)}`),
+  getDocSettings: (docId: string) => request<DocSettingsResponse>(`${docPath(docId)}/settings`),
+  saveDocSettings: (docId: string, settings: DocSettings) =>
+    request<{ settings: DocSettings }>(`${docPath(docId)}/settings`, { method: "PUT", json: settings }),
+  resetDocSettings: (docId: string) => request<unknown>(`${docPath(docId)}/settings`, { method: "DELETE" }),
+  // The run uses the session's model key, like /query
+  startStressTest: (docId: string, size: number) =>
+    request<{ run_id: string }>(`${docPath(docId)}/stress-tests`, { method: "POST", json: { size } }),
+  listStressTests: (docId: string) => request<StressRunSummary[]>(`${docPath(docId)}/stress-tests`),
+  getStressTest: (docId: string, runId: string) =>
+    request<StressReport>(`${docPath(docId)}/stress-tests/${encodeURIComponent(runId)}`),
 };
+
+function docPath(docId: string) {
+  return `/documents/${encodeURIComponent(docId)}`;
+}

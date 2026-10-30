@@ -3,7 +3,7 @@ import logging
 import os
 
 from app.core.config import settings
-from app.services.generic.parsers.pdf_parser import parse_pdf
+from app.services.generic.parsers.docling_parser import parse_with_docling
 from app.services.generic.parsers.txt_parser import parse_txt
 from app.services.text_cleaning.text_cleaning_service import TextCleaningService
 
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 PARSED_BASE = settings.parsed_dir
 RAW_BASE = settings.raw_dir
 cleaner = TextCleaningService()
+DOCLING_EXTS = {"pdf", "docx", "pptx", "html"}
 
 
 class ParsingService:
@@ -30,9 +31,9 @@ class ParsingService:
 
         ext = filename.split(".")[-1].lower()
 
-        if ext == "pdf":
-            logger.info(f"Parsing PDF document {filename}")
-            pages = parse_pdf(raw_path)
+        if ext in DOCLING_EXTS:
+            logger.info(f"Parsing {ext.upper()} document {filename} with Docling")
+            pages = parse_with_docling(raw_path, ext)
         elif ext == "txt":
             logger.info(f"Parsing TXT document {filename}")
             pages = parse_txt(raw_path)
@@ -41,7 +42,8 @@ class ParsingService:
 
         logger.debug(f"Raw pages extracted: {len(pages)}")
 
-        pages = cleaner.clean_pages(pages)
+        # Docling output is Markdown: keep its line structure (headings, tables, lists)
+        pages = cleaner.clean_pages(pages, markdown=ext in DOCLING_EXTS)
         logger.debug("Text cleaning completed")
 
         os.makedirs(PARSED_BASE, exist_ok=True)

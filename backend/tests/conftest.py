@@ -2,6 +2,7 @@
 Pytest configuration and test fixtures.
 """
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -42,22 +43,24 @@ class DummyPdfplumber:
         # Return dummy PDF with no pages by default; tests will override
         return DummyPdfplumber.PDF([])
 
-# Insert dummy modules before any app imports
-_dummy_st = MagicMock()
-_dummy_st.SentenceTransformer = DummySentenceTransformer
-sys.modules['sentence_transformers'] = _dummy_st
+# Insert dummy modules before any app imports.
+# RAGTRACK_REAL_ML=1 keeps the real libraries (for the Docling parser tests).
+if not os.environ.get("RAGTRACK_REAL_ML"):
+    _dummy_st = MagicMock()
+    _dummy_st.SentenceTransformer = DummySentenceTransformer
+    sys.modules['sentence_transformers'] = _dummy_st
 
-_dummy_pdf = MagicMock()
-_dummy_pdfplumber = MagicMock()
-_dummy_pdfplumber.open = DummyPdfplumber.open
-sys.modules['pdfplumber'] = _dummy_pdfplumber
+    _dummy_pdf = MagicMock()
+    _dummy_pdfplumber = MagicMock()
+    _dummy_pdfplumber.open = DummyPdfplumber.open
+    sys.modules['pdfplumber'] = _dummy_pdfplumber
 
-# Also stub transformers to avoid import errors
-_dummy_transformers = MagicMock()
-sys.modules['transformers'] = _dummy_transformers
-sys.modules['torch'] = MagicMock()
-sys.modules['tensorflow'] = MagicMock()
-sys.modules['absl'] = MagicMock()
+    # Also stub transformers to avoid import errors
+    _dummy_transformers = MagicMock()
+    sys.modules['transformers'] = _dummy_transformers
+    sys.modules['torch'] = MagicMock()
+    sys.modules['tensorflow'] = MagicMock()
+    sys.modules['absl'] = MagicMock()
 
 # ============================================================
 # Fixtures

@@ -14,10 +14,23 @@ from typing import Any, Optional
 
 from app.core.config import settings
 from app.services.jev import JevReranker
+from app.services.observability.candidates import build_candidates
 from app.services.retrieval.bm25.service import BM25Service
 from app.services.retrieval.retrieval_service import RetrievalService
 
 logger = logging.getLogger(__name__)
+
+
+def names_section(headings: list[str], query: str) -> bool:
+    """Does the query name one of the chunk's headings? Any heading word of 4+ letters counts,
+    so "Work Experience" or a Docling ["John Doe", "Experience"] hierarchy still matches."""
+    q_lower = query.lower()
+    for heading in headings:
+        for word in re.findall(r"[a-z]{4,}", heading.lower()):
+            stem = word.rstrip("s")  # "skills" -> "skill" also matches the singular
+            if re.search(r"\b" + re.escape(stem), q_lower):
+                return True
+    return False
 
 
 class HybridRetrievalService:
@@ -89,6 +102,7 @@ class HybridRetrievalService:
         weights: Optional[dict[str, float]] = None,
         rerank_query: Optional[str] = None,
         api_key: Optional[str] = None,
+        min_relevance: Optional[float] = None,
     ) -> dict[str, Any]:
         """
         Perform hybrid search combining BM25 and vector retrieval.
@@ -324,6 +338,7 @@ class HybridRetrievalService:
                                     "page_number": item_meta.get("page_number"),
                                     "is_title_block": True,
                                     "structural_type": item_meta.get("structural_type", "paragraph"),
+                                    "ocr": item_meta.get("ocr", False),
                                     "reading_order": item_meta.get("reading_order", 0),
                                     "heading_hierarchy": item_meta.get("heading_hierarchy", []),
                                 },
@@ -339,11 +354,8 @@ class HybridRetrievalService:
         # Step 3.75: Section boost — a query that names a chunk's section
         # heading (e.g. "skills", "education") favours chunks under it
         # ------------------------------------------------------------------
-        q_lower = query.lower()
         for item in fused:
-            heading = " ".join(item.get("metadata", {}).get("heading_hierarchy") or []).lower()
-            stem = heading.rstrip("s")  # "skills" -> "skill" also matches the singular
-            if stem and re.search(r"\b" + re.escape(stem), q_lower):
+            if names_section(item.get("metadata", {}).get("heading_hierarchy") or [], query):
                 item["score"] = round(min(1.0, item["score"] + 0.15), 4)
         fused.sort(key=lambda x: x["score"], reverse=True)
 
@@ -386,7 +398,12 @@ class HybridRetrievalService:
                 top_k=top_k,
                 return_all=False,
                 api_key=api_key,
+                min_relevance=min_relevance,
             )
+
+        # Every fused chunk with its component scores, for the trace's candidate funnel
+        candidates = build_candidates(fused, rerank_result)
+        rerank_attempted = bool(should_rerank and self.reranker and len(fused) > 1)
 
         if rerank_result is not None:
             raw_reranked = rerank_result["top_k_items"]
@@ -425,6 +442,8 @@ class HybridRetrievalService:
                 "signal_scores": signal_scores,
                 "weights_used": weights_used,
                 "total_candidates": len(fused),
+                "candidates": candidates,
+                "rerank_attempted": rerank_attempted,
             }
 
         # ------------------------------------------------------------------
@@ -457,6 +476,8 @@ class HybridRetrievalService:
                 "fusion_weights": {"bm25": w_bm25, "vector": w_vector},
             },
             "total_candidates": len(fused),
+            "candidates": candidates,
+            "rerank_attempted": rerank_attempted,
         }
 
     def __repr__(self) -> str:

@@ -117,6 +117,7 @@ class RetrievalService:
                             "page_number": item.get("page_number"),
                             "is_title_block": item.get("is_title_block", False),
                             "structural_type": item.get("structural_type", "paragraph"),
+                            "ocr": item.get("ocr", False),
                             "reading_order": item.get("reading_order", 0),
                             "heading_hierarchy": item.get("heading_hierarchy", []),
                         },
@@ -136,6 +137,7 @@ class RetrievalService:
         use_reranking: Optional[bool] = None,
         rerank_query: Optional[str] = None,
         api_key: Optional[str] = None,
+        min_relevance: Optional[float] = None,
     ) -> dict[str, Any]:
         """
         Performs semantic search inside ONE document using FAISS.
@@ -207,6 +209,7 @@ class RetrievalService:
                             "page_number": item.get("page_number"),
                             "is_title_block": item.get("is_title_block", False),
                             "structural_type": item.get("structural_type", "paragraph"),
+                            "ocr": item.get("ocr", False),
                             "reading_order": item.get("reading_order", 0),
                             "heading_hierarchy": item.get("heading_hierarchy", []),
                         },
@@ -226,6 +229,7 @@ class RetrievalService:
                 top_k=top_k,
                 return_all=False,
                 api_key=api_key,
+                min_relevance=min_relevance,
             )
 
         if rerank_result is not None:

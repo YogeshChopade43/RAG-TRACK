@@ -36,8 +36,15 @@ flowchart LR
     G --> T[Answer + sources + trace]
 ```
 
-Documents are parsed page by page, cleaned, cut into overlapping chunks (~350 characters), embedded locally with
-`all-MiniLM-L12-v2`, and stored in a FAISS HNSW index plus a BM25 keyword index.
+Documents (PDF, Word, PowerPoint, HTML or TXT) are parsed with [Docling](https://github.com/docling-project/docling)
+into Markdown page by page: headings, lists and tables survive, page headers and footers are dropped, and scanned
+pages are read with OCR (RapidOCR, only on image regions; text layers are used as-is). Pages are cleaned, cut into
+overlapping chunks (~350 characters; a table becomes its own chunk and is never split mid-row), embedded locally
+with `all-MiniLM-L12-v2`, and stored in a FAISS HNSW index plus a BM25 keyword index. Ingestion runs in the
+background and the upload screen shows the real stage; chunks that came from OCR are marked in the trace.
+
+> **OCR limits:** RapidOCR reads English and Chinese best; other scripts may come out poorly. Docling uses about
+> 1 GB of memory while converting and takes a few seconds per page (more for scanned pages).
 
 ### Jev: the decision model
 
@@ -98,7 +105,7 @@ The UI has a light theme (default) and a dark theme:
 git clone https://github.com/YogeshChopade43/RAG-TRACK.git
 cd RAG-TRACK
 
-python -m venv venv
+python -m venv venv                 # Python 3.10+ (Docling needs it)
 source venv/bin/activate            # Windows: .\venv\Scripts\activate
 pip install -r requirements.txt
 
@@ -117,8 +124,8 @@ npm install
 npm run dev                         # UI on http://localhost:5173 (API calls are proxied to :8000)
 ```
 
-Then register, paste your OpenRouter key and model, upload a PDF and ask a question. The embedding model
-downloads on first use.
+Then register, paste your OpenRouter key and model, upload a document and ask a question. The embedding
+model and Docling's models (~730 MB) download on first use; the Docker image ships them.
 
 ### Run with Docker
 
@@ -148,7 +155,9 @@ Copy `.env.example` to `.env`. The main settings:
 | `JEV_MIN_RELEVANCE` | 0.1 | Reranked chunks below this are dropped (after the best 3) |
 | `TRACE_RETENTION_DAYS` | 7 | Delete traces after N days (0 = keep forever) |
 | `RATE_LIMIT_PER_MINUTE` | 30 | Requests per client per minute |
-| `MAX_FILE_SIZE_MB` | 10 | Upload limit (PDF, TXT) |
+| `MAX_FILE_SIZE_MB` | 10 | Upload limit |
+| `ALLOWED_EXTENSIONS` | `pdf,txt,docx,pptx,html` | Accepted upload types |
+| `DOCLING_ARTIFACTS_PATH` | empty | Docling models folder (set in the Docker image; empty = Hugging Face cache) |
 | `API_KEY` | empty | Optional `X-API-Key` guard for the whole API |
 
 > **Privacy:** to answer questions, parts of your document's text are sent to OpenRouter (the chat model you

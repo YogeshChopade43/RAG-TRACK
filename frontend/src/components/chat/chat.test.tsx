@@ -3,13 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { ChatView } from "@/components/chat/ChatView";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
+import type { QueryResponse } from "@/lib/types";
 
-function setup(answerText = "Jane is a **data engineer**.") {
+function setup(answerText = "Jane is a **data engineer**.", extra: Partial<QueryResponse> = {}) {
   const query = vi.spyOn(api, "query").mockResolvedValue({
     trace_id: "t1",
     question: "q",
     answer: answerText,
     sources: [{ file_name: "cv.pdf", page_number: 1 }],
+    ...extra,
   });
   render(
     <TooltipProvider>
@@ -83,4 +85,71 @@ test("Copy puts the answer on the clipboard", async () => {
   await userEvent.type(input, "q{Enter}");
   await userEvent.click(await screen.findByRole("button", { name: "Copy answer" }));
   expect(writeText).toHaveBeenCalledWith("Plain answer.");
+});
+
+describe("answer transparency", () => {
+  const usage = { total_tokens: 1900, cost_usd: 0.0004, jev_cost_included: true };
+
+  async function answer(extra: Partial<QueryResponse>, text = "Jane is a data engineer.") {
+    const { input } = setup(text, extra);
+    await userEvent.type(input, "q{Enter}");
+    return screen.findByRole("article");
+  }
+
+  test("footer shows tokens and cost", async () => {
+    const article = await answer({ usage });
+    expect(within(article).getByText(/1\.9k tokens/)).toBeInTheDocument();
+    expect(within(article).getByText(/\$0\.0004/)).toBeInTheDocument();
+  });
+
+  test("cost says excl. Jev when Jev usage was not reported", async () => {
+    const article = await answer({ usage: { ...usage, jev_cost_included: false } });
+    expect(within(article).getByText(/excl\. Jev/)).toBeInTheDocument();
+  });
+
+  test("cached and fallback badges", async () => {
+    const article = await answer({ cached: true, usage: { total_tokens: 0, cost_usd: 0, jev_cost_included: true }, fallbacks: ["rerank"] });
+    expect(within(article).getByText("cached")).toBeInTheDocument();
+    expect(within(article).getByText("Jev fallback: rerank")).toBeInTheDocument();
+  });
+
+  test("no footer details when the response has none (older backend)", async () => {
+    const article = await answer({});
+    expect(within(article).queryByText(/tokens/)).not.toBeInTheDocument();
+    expect(within(article).queryByText("cached")).not.toBeInTheDocument();
+  });
+
+  test("a not-found answer lists its closest passages", async () => {
+    const article = await answer(
+      {
+        answer_status: "not_found",
+        near_misses: [
+          { file_name: "cv.pdf", page_number: 1, jev: 0.08, reason: "below_min_relevance", preview: "Yogesh Chopade AI / GenAI Engineer" },
+          { file_name: "cv.pdf", page_number: 2, jev: 0.05, reason: "below_min_relevance", preview: "Skills: Python" },
+        ],
+      },
+      "I could not find the answer in the document."
+    );
+    const list = within(article).getByRole("list", { name: "Closest passages" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getByText("0.08")).toBeInTheDocument();
+    expect(within(list).getByText(/Yogesh Chopade AI/)).toBeInTheDocument();
+    expect(within(article).getByText(/none were judged relevant enough to use/)).toBeInTheDocument();
+  });
+
+  test("answered messages show no near-miss block", async () => {
+    const article = await answer({ answer_status: "answered", near_misses: [] });
+    expect(within(article).queryByRole("list", { name: "Closest passages" })).not.toBeInTheDocument();
+  });
+});
+
+test("the empty state offers to test the document", async () => {
+  const onTest = vi.fn();
+  render(
+    <TooltipProvider>
+      <ChatView documentId="docA" fileName="cv.pdf" onTestDocument={onTest} />
+    </TooltipProvider>
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Test this document" }));
+  expect(onTest).toHaveBeenCalled();
 });

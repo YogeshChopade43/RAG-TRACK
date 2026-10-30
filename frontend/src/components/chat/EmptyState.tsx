@@ -1,8 +1,9 @@
 import { MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const STARTERS = ["Summarise this document", "Who is this about?", "What are the key points?"];
 
-export function EmptyState(props: { fileName: string; onPick(question: string): void }) {
+export function EmptyState(props: { fileName: string; onPick(question: string): void; onTestDocument?(): void }) {
   return (
     <div className="grid place-items-center gap-4 py-12 text-center">
       <span aria-hidden className="grid size-12 place-items-center rounded-lg border-2 border-ink bg-primary text-primary-foreground shadow-[3px_3px_0_var(--ink)]">
@@ -22,6 +23,11 @@ export function EmptyState(props: { fileName: string; onPick(question: string): 
           </button>
         ))}
       </div>
+      {props.onTestDocument && (
+        <Button variant="link" size="sm" onClick={props.onTestDocument}>
+          Test this document
+        </Button>
+      )}
     </div>
   );
 }

@@ -152,3 +152,51 @@ class TestChunkingService:
 
         chunks = service.chunk(parsed_load)
         assert len(chunks) > 0
+
+
+def _load(text, source="text"):
+    return {"document_id": "d", "file_name": "f.pdf", "pages": [{"page_number": 1, "text": text, "source": source}]}
+
+
+def test_markdown_headings_build_hierarchy():
+    chunks = ChunkingService(chunk_size=500).chunk(_load("# Experience\n\n## Acme Corp\n\nBuilt RAG systems."))
+    body = [c for c in chunks if "Built RAG" in c["chunk_text"]][0]
+    assert body["heading_hierarchy"] == ["Experience", "Acme Corp"]
+
+
+TABLE = "| Name | Score |\n| --- | --- |\n" + "".join(f"| row{i} | {i} |\n" for i in range(40))
+
+
+def test_table_is_its_own_chunk_and_never_split_mid_row():
+    chunks = ChunkingService(chunk_size=200, chunk_overlap=20).chunk(_load("Intro text.\n\n" + TABLE))
+    tables = [c for c in chunks if c["structural_type"] == "table"]
+    assert len(tables) > 1
+    for c in tables:
+        lines = c["chunk_text"].splitlines()
+        assert lines[0] == "| Name | Score |" and lines[1] == "| --- | --- |"
+        assert all(line.startswith("|") and line.endswith("|") for line in lines)
+    assert "Intro text." not in "".join(c["chunk_text"] for c in tables)
+    rows = [line for c in tables for line in c["chunk_text"].splitlines()[2:]]
+    assert rows == [f"| row{i} | {i} |" for i in range(40)]
+
+
+def test_single_row_longer_than_chunk_size_is_kept_whole():
+    long_row = "| " + "x" * 300 + " | 1 |"
+    chunks = ChunkingService(chunk_size=100, chunk_overlap=10).chunk(_load("| A | B |\n| --- | --- |\n" + long_row))
+    assert any(long_row in c["chunk_text"] for c in chunks)
+
+
+def test_ocr_flag_follows_page_source():
+    assert all(c["ocr"] for c in ChunkingService().chunk(_load("Scanned text here.", "ocr")))
+    txt = {"document_id": "d", "file_name": "f.txt", "pages": [{"page_number": None, "text": "Plain."}]}
+    assert not any(c["ocr"] for c in ChunkingService().chunk(txt))
+
+
+def test_markdown_list_without_punctuation_is_split_into_sized_chunks():
+    items = "\n".join(f"- Skill number {i} with some detail" for i in range(60))
+    service = ChunkingService(chunk_size=350, chunk_overlap=50)
+    chunks = service.chunk(_load("## Skills\n\n" + items))
+    assert len(chunks) > 1
+    assert all(len(c["chunk_text"]) <= service.chunk_size for c in chunks)
+    assert all(c["heading_hierarchy"] == ["Skills"] for c in chunks)
+    assert "Skill number 59 with some detail" in chunks[-1]["chunk_text"]

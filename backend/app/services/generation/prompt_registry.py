@@ -32,6 +32,10 @@ class PromptRegistry:
 
 registry = PromptRegistry()
 
+# The model's fixed refusal. /query reports answer_status "not_found" when the answer
+# is exactly this; test_candidates checks every prompt uses this exact sentence.
+NOT_FOUND_ANSWER = "I could not find the answer in the document."
+
 registry.register(
     name="qa",
     system_prompt="""

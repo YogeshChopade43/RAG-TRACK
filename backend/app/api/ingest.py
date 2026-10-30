@@ -4,7 +4,6 @@ Ingestion API endpoints for RAG-TRACK.
 Provides document upload and processing endpoints.
 """
 
-import asyncio
 import logging
 import os
 import re
@@ -16,10 +15,10 @@ from pydantic import BaseModel
 
 from app.core.auth import check_document_access, get_api_key, get_optional_user_id
 from app.core.config import settings
-from app.core.exceptions import IngestionError
 from app.core.ratelimit import default_limit, limiter
 from app.services.generic.file_storage import save_owner, save_raw_file
-from app.services.ingestion.ingestion_service import ingest, remove_document_files
+from app.services.ingestion import jobs
+from app.services.ingestion.ingestion_service import remove_document_files
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +43,12 @@ class IngestStatusResponse(BaseModel):
     """Response model for ingestion status check."""
 
     document_id: str
-    status: str  # processing, completed, failed
-    progress: Optional[int] = None
+    status: str  # queued, parsing, chunking, embedding, ready, failed
     error: Optional[str] = None
+    pages: Optional[int] = None
+
+
+BUSY = "Document is still processing"
 
 
 # =============================================================================
@@ -95,8 +97,8 @@ def validate_file_extension(filename: str) -> str:
     response_model=IngestResponse,
     summary="Upload and ingest document",
     description="""
-    Upload a document (PDF or TXT) for processing.
-    The document will be parsed, chunked, and embedded for semantic search.
+    Upload a document (PDF, DOCX, PPTX, HTML or TXT). Returns immediately; the document
+    is parsed, chunked and embedded in the background (poll GET /ingest/{id}/status).
     """,
     responses={
         200: {"description": "Document uploaded successfully"},
@@ -149,7 +151,6 @@ async def ingest_document(
     logger.info(f"Uploading document: {safe_filename}, size: {size_bytes} bytes")
 
     try:
-        # Save raw file
         save_raw_file(
             document_id=document_id,
             filename=safe_filename,
@@ -159,31 +160,28 @@ async def ingest_document(
         user_id = get_optional_user_id(request)
         if user_id:
             save_owner(document_id, user_id)
-
-        # Trigger ingestion pipeline off the event loop
-        await asyncio.get_running_loop().run_in_executor(
-            None, lambda: ingest(document_id, filename=safe_filename)
-        )
-
-        logger.info(f"Document ingested successfully: {document_id}")
-
-        return IngestResponse(
-            filename=safe_filename,
-            document_id=document_id,
-            status="completed",
-            message="Document processed successfully",
-        )
-
-    except IngestionError as e:
-        # A ValueError underneath means bad input (e.g. a scanned PDF): show its message
-        if isinstance(e.__cause__, ValueError):
-            logger.warning(f"Validation error during ingestion: {e.__cause__}")
-            raise HTTPException(status_code=400, detail=str(e.__cause__)) from None
-        logger.exception(f"Ingestion failed for {document_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process document") from None
     except Exception as e:
-        logger.exception(f"Ingestion failed for {document_id}: {str(e)}")
+        logger.exception(f"Saving upload failed for {document_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to process document") from None
+
+    jobs.start(document_id, safe_filename)
+    return IngestResponse(filename=safe_filename, document_id=document_id, status="processing")
+
+
+# Not rate limited: the upload screen polls it every second
+@router.get("/{document_id}/status", response_model=IngestStatusResponse)
+async def get_ingest_status(document_id: str, request: Request):
+    """Where a document's ingestion is: queued, parsing, chunking, embedding, ready or failed."""
+    if not re.match(r"^[a-f0-9-]{36}$", document_id):
+        raise HTTPException(status_code=400, detail="Invalid document ID format")
+    check_document_access(document_id, request)
+    status = jobs.get_status(document_id)
+    if status is None:
+        if not (settings.raw_dir / document_id).exists():
+            raise HTTPException(status_code=404, detail="Document not found")
+        # Uploaded before background ingestion existed: it finished synchronously
+        status = {"document_id": document_id, "status": "ready", "error": None, "pages": None}
+    return status
 
 
 @router.get("/{document_id}")
@@ -217,6 +215,8 @@ async def delete_document(document_id: str, request: Request, _: str = Depends(g
     if not re.match(r"^[a-f0-9-]{36}$", document_id):
         raise HTTPException(status_code=400, detail="Invalid document ID format")
     check_document_access(document_id, request)
+    if jobs.is_processing(document_id):
+        raise HTTPException(status_code=409, detail=BUSY)
 
     # Delete raw file
     raw_dir = settings.raw_dir / document_id
@@ -226,6 +226,10 @@ async def delete_document(document_id: str, request: Request, _: str = Depends(g
 
     # Delete parsed text, FAISS index, metadata and BM25 index
     deleted_count = remove_document_files(document_id)
+    from app.services.stress.jobs import delete_document_reports
+
+    delete_document_reports(document_id)
+    jobs.delete_status(document_id)
 
     logger.info(f"Deleted {deleted_count} files for document: {document_id}")
 

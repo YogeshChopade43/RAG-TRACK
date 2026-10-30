@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 
-from app.api import auth, ingest, retrieve
+from app.api import auth, documents, ingest, retrieve
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.observability import setup_opentelemetry
@@ -79,6 +79,10 @@ async def _trace_cleanup_loop() -> None:
     while True:
         try:
             await asyncio.to_thread(TraceStorage.cleanup_old_traces, settings.trace_retention_days)
+            # Stress-test reports also hold document text (questions and answers)
+            from app.services.stress.jobs import cleanup_old_reports
+
+            await asyncio.to_thread(cleanup_old_reports, settings.trace_retention_days)
         except Exception as e:
             logger.warning(f"Trace cleanup failed: {e}")
         await asyncio.sleep(24 * 3600)
@@ -168,6 +172,7 @@ async def request_correlation(request: Request, call_next):
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(ingest.router, prefix="/ingest", tags=["Ingestion"])
 app.include_router(retrieve.router, prefix="/query", tags=["Query"])
+app.include_router(documents.router, prefix="/documents", tags=["Documents"])
 
 
 @app.get("/")

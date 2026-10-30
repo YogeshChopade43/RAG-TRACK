@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 
-from app.core.exceptions import IngestionError
 from app.core.security import create_access_token
 from app.services.chunking.chunking_service import ChunkingService
 
@@ -25,25 +24,6 @@ def test_sentences_keep_single_punctuation_and_spaces():
     assert all(".." not in c["chunk_text"] for c in chunks)
     assert "gamma. Alpha" in chunks[0]["chunk_text"]
     assert all(len(c["chunk_text"]) <= service.chunk_size for c in chunks)
-
-
-def test_scanned_pdf_returns_400_with_parser_message(mock_client):
-    err = IngestionError("Failed to parse document", stage="parsing")
-    err.__cause__ = ValueError("This PDF appears to be image-based (scanned)")
-    with patch("app.api.ingest.save_raw_file"), patch("app.api.ingest.ingest", side_effect=err):
-        res = mock_client.post("/ingest", files={"file": ("scan.pdf", b"%PDF", "application/pdf")})
-
-    assert res.status_code == 400
-    assert "scanned" in res.json()["detail"]
-
-
-def test_unexpected_ingestion_error_is_500(mock_client):
-    err = IngestionError("boom")
-    err.__cause__ = RuntimeError("disk full")
-    with patch("app.api.ingest.save_raw_file"), patch("app.api.ingest.ingest", side_effect=err):
-        res = mock_client.post("/ingest", files={"file": ("a.txt", b"x", "text/plain")})
-
-    assert res.status_code == 500
 
 
 def test_full_evaluation_overall_score():

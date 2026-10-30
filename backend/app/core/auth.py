@@ -83,6 +83,18 @@ def check_document_access(document_id: str, request: Request) -> None:
         raise HTTPException(status_code=404, detail="Document not found")
 
 
+def require_document_owner(document_id: str, request: Request) -> str:
+    """404 unless the signed-in user owns the document. Stricter than check_document_access:
+    used for actions that change how a document answers or spend money on it."""
+    from app.services.generic.file_storage import get_owner
+
+    owner = get_owner(document_id)
+    user_id = get_optional_user_id(request)
+    if not owner or owner != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return user_id
+
+
 def add_token_to_blacklist(token: str) -> None:
     """Add a token to the blacklist."""
     _token_blacklist.add(token)

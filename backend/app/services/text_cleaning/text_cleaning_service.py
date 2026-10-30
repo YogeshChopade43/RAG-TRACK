@@ -18,7 +18,8 @@ class TextCleaningService:
         same structure but cleaned text
     """
 
-    def clean_pages(self, pages: list[dict]) -> list[dict]:
+    def clean_pages(self, pages: list[dict], markdown: bool = False) -> list[dict]:
+        """markdown=True keeps line structure (Markdown headings, tables, lists from Docling)."""
 
         if not pages:
             return []
@@ -35,18 +36,20 @@ class TextCleaningService:
             text = self._remove_page_footer(text)
             text = self._remove_unicode_noise(text)
             text = self._remove_dotted_lines(text)
-            text = self._remove_image_references(text)
-            text = self._fix_line_breaks(text)
-            text = self._normalize_bullets(text)
-            text = self._normalize_hyphenation(text)
-            text = self._normalize_spaces(text)
+            if markdown:
+                # Docling already drops images; line joining and hyphen fixes would break tables and lists
+                text = self._normalize_bullets(text)
+                text = "\n".join(self._normalize_spaces(line) for line in text.splitlines()).strip()
+            else:
+                text = self._remove_image_references(text)
+                text = self._fix_line_breaks(text)
+                text = self._normalize_bullets(text)
+                text = self._normalize_hyphenation(text)
+                text = self._normalize_spaces(text)
             text = self._normalize_punctuation(text)
 
             if text.strip():
-                cleaned_pages.append({
-                    "page_number": page["page_number"],
-                    "text": text
-                })
+                cleaned_pages.append({**page, "text": text})
 
         return cleaned_pages
 

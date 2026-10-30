@@ -6,14 +6,14 @@ import { MessageList } from "./MessageList";
 
 const renderTrace = (traceId: string) => <TracePanel traceId={traceId} />;
 
-export function ChatView(props: { documentId: string; fileName: string }) {
+export function ChatView(props: { documentId: string; fileName: string; onTestDocument?(): void }) {
   const { messages, pending, ask, retry } = useChat(props.documentId);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6">
       <div className="flex-1">
         {messages.length === 0 ? (
-          <EmptyState fileName={props.fileName} onPick={ask} />
+          <EmptyState fileName={props.fileName} onPick={ask} onTestDocument={props.onTestDocument} />
         ) : (
           <MessageList messages={messages} onRetry={retry} renderTrace={renderTrace} />
         )}

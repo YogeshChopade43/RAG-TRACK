@@ -9,7 +9,7 @@ import { SettingsDialog } from "./SettingsDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 
-export function TopBar(props: { fileName?: string; onChangeDocument?(): void }) {
+export function TopBar(props: { fileName?: string; onChangeDocument?(): void; onTestDocument?(): void }) {
   const { model, verified } = useLlmSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const modelLabel = verified ? model : "Not connected";
@@ -57,7 +57,12 @@ export function TopBar(props: { fileName?: string; onChangeDocument?(): void }) 
             <Settings />
           </Button>
           <ThemeToggle />
-          <UserMenu fileName={props.fileName} modelLabel={modelLabel} onChangeDocument={props.onChangeDocument} />
+          <UserMenu
+            fileName={props.fileName}
+            modelLabel={modelLabel}
+            onChangeDocument={props.onChangeDocument}
+            onTestDocument={props.onTestDocument}
+          />
         </div>
       </div>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />

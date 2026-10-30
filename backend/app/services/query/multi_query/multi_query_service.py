@@ -47,7 +47,7 @@ class MultiQueryService:
                 """
 
         try:
-            response = self.llm.chat(system_prompt, query, api_key=api_key, model=model)
+            response = self.llm.chat(system_prompt, query, api_key=api_key, model=model, purpose="expand")
 
             queries = response.split("\n")
 

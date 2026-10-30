@@ -5,6 +5,7 @@ Provides LLM integration with OpenAI-compatible APIs.
 """
 import logging
 import os
+import time
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ from tenacity import (
 )
 
 from app.core.config import settings
+from app.services.observability.call_log import call_entry, record_call
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +81,7 @@ class LLMService:
         user_prompt: str,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
+        purpose: str = "llm",
     ) -> str:
         """
         Send a chat request to the LLM.
@@ -95,8 +98,9 @@ class LLMService:
         Raises:
             LLMError: If request fails after retries
         """
+        llm_model = model or self.model
+        started = time.perf_counter()
         try:
-            llm_model = model or self.model
             logger.debug(f"Sending request to LLM model={llm_model} prompt_length={len(user_prompt)}")
 
             client = self.client
@@ -124,7 +128,16 @@ class LLMService:
                 ],
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                # OpenRouter usage accounting: adds token counts and cost (USD) to `usage`
+                extra_body={"usage": {"include": True}},
             )
+            usage = getattr(response, "usage", None)
+            record_call(call_entry(
+                "llm", purpose, llm_model, started,
+                prompt_tokens=getattr(usage, "prompt_tokens", None),
+                completion_tokens=getattr(usage, "completion_tokens", None),
+                cost_usd=getattr(usage, "cost", None),
+            ))
 
             # Extract text from response
             if not response.choices:
@@ -137,6 +150,7 @@ class LLMService:
 
         except Exception as e:
             logger.error(f"LLM request failed: {str(e)}")
+            record_call(call_entry("llm", purpose, llm_model, started, error=str(e)))
             raise
 
     def __repr__(self) -> str:

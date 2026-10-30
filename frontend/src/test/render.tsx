@@ -3,6 +3,10 @@ import { RouterProvider } from "react-router";
 import { AppProviders } from "@/providers";
 import { createAppRouter } from "@/router";
 
+// The router lazy-loads these pages. Load them once up front so a test's first
+// findBy doesn't race a cold module import (slow under full-suite load).
+await Promise.all([import("@/pages/Landing"), import("@/pages/AppPage")]);
+
 /** Render the real app (providers + routes) at a URL using an in-memory router. */
 export function renderApp(path: string) {
   const router = createAppRouter({ initialEntries: [path] });

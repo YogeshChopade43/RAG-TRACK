@@ -193,3 +193,21 @@ class TestTextCleaningService:
         assert "page_number" in result[0]
         assert "text" in result[0]
         assert result[0]["page_number"] == 1
+
+
+MD = "# Education\n\n| Degree | Year |\n| --- | --- |\n| BE | 2019 |\n\n- Python\n- FastAPI"
+
+
+def test_markdown_mode_keeps_tables_headings_and_lists():
+    out = TextCleaningService().clean_pages([{"page_number": 1, "text": MD, "source": "ocr"}], markdown=True)
+    lines = out[0]["text"].splitlines()
+    assert "# Education" in lines
+    assert "| --- | --- |" in lines
+    assert "- Python" in lines
+    assert out[0]["source"] == "ocr"
+
+
+def test_default_mode_unchanged_and_keeps_extra_keys():
+    out = TextCleaningService().clean_pages([{"page_number": 2, "text": "time-\nconsuming work", "source": "text"}])
+    assert out[0]["text"] == "timeconsuming work"
+    assert out[0]["source"] == "text"

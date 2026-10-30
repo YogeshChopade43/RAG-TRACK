@@ -178,6 +178,7 @@ class BM25Service:
                     "page_number": chunk.get("page_number"),
                     "is_title_block": chunk.get("is_title_block", False),
                     "structural_type": chunk.get("structural_type", "paragraph"),
+                    "ocr": chunk.get("ocr", False),
                     "reading_order": chunk.get("reading_order", 0),
                     "heading_hierarchy": chunk.get("heading_hierarchy", []),
                 },

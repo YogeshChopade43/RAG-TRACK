@@ -8,7 +8,7 @@ import tailwindcss from '@tailwindcss/vite'
 // exactly like the container (where FastAPI serves the built frontend).
 const backend = 'http://localhost:8000'
 const apiProxy = Object.fromEntries(
-  ['/auth', '/ingest', '/query', '/health'].map((p) => [p, backend])
+  ['/auth', '/ingest', '/query', '/documents', '/health'].map((p) => [p, backend])
 )
 
 // https://vite.dev/config/

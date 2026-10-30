@@ -16,6 +16,12 @@ class TestIngestAPI:
         """Use the pre-configured mock client."""
         return mock_client
 
+    @pytest.fixture(autouse=True)
+    def no_background_ingest(self):
+        """Uploads queue background ingestion; these tests only cover the request side."""
+        with patch("app.api.ingest.jobs.start"):
+            yield
+
     @pytest.fixture
     def sample_text_file(self):
         """Create a sample text file."""
@@ -47,15 +53,14 @@ trailer<</Root 1 0 R>>
 
     def test_ingest_document_success_text(self, client):
         """Test successful text document ingestion."""
-        with patch('app.api.ingest.save_raw_file'), \
-             patch('app.api.ingest.ingest', return_value={"status": "completed"}):
+        with patch('app.api.ingest.save_raw_file'):
             response = client.post(
                 "/ingest",
                 files={"file": ("test.txt", b"Sample content", "text/plain")}
             )
             assert response.status_code == 200
             data = response.json()
-            assert data["status"] == "completed"
+            assert data["status"] == "processing"
             assert "document_id" in data
 
     def test_ingest_document_requires_file(self, client):

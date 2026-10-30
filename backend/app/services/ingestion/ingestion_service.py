@@ -6,6 +6,8 @@ Includes comprehensive error handling and cleanup for partial files.
 """
 
 import logging
+from collections.abc import Callable
+from typing import Any, Optional
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -13,6 +15,7 @@ from app.core.exceptions import (
 )
 from app.services.chunking.chunking_service import ChunkingService
 from app.services.embedding.embedding_service import EmbeddingService
+from app.services.generic import file_storage
 from app.services.generic.file_storage import owner_path
 from app.services.generic.utils.parser_utils import get_page_text
 from app.services.parsing.parsing_service import ParsingService
@@ -36,6 +39,7 @@ def remove_document_files(document_id: str) -> int:
         settings.vector_store_dir / f"{document_id}.json",
         settings.vector_store_dir / f"{document_id}_bm25.pkl",
         owner_path(document_id),
+        file_storage.doc_settings_path(document_id),
     ]
 
     removed = 0
@@ -50,7 +54,7 @@ def remove_document_files(document_id: str) -> int:
     return removed
 
 
-def ingest(document_id: str, filename: str) -> dict:
+def ingest(document_id: str, filename: str, on_stage: Optional[Callable[..., Any]] = None) -> dict:
     """
     Orchestrate the ingestion pipeline for a document.
 
@@ -63,6 +67,7 @@ def ingest(document_id: str, filename: str) -> dict:
     Args:
         document_id: Unique identifier for the document
         filename: Original filename
+        on_stage: Called with "parsing", "chunking" (with pages=) and "embedding" as each starts
 
     Returns:
         dict: Ingestion result with extracted text preview
@@ -71,10 +76,12 @@ def ingest(document_id: str, filename: str) -> dict:
         IngestionError: If any stage of the pipeline fails
     """
     logger.info(f"Starting ingestion for document {document_id} ({filename})")
+    on_stage = on_stage or (lambda stage, **info: None)
 
     try:
         # Stage 1: Parse raw file
         logger.debug(f"[{document_id}] Parsing stage starting")
+        on_stage("parsing")
         try:
             parsed_load = parsing_service.parse(document_id)
         except Exception as e:
@@ -93,6 +100,7 @@ def ingest(document_id: str, filename: str) -> dict:
 
         # Stage 2: Chunk text
         logger.debug(f"[{document_id}] Chunking stage starting")
+        on_stage("chunking", pages=len(parsed_load["pages"]))
         try:
             chunks = chunking_service.chunk(parsed_load)
         except Exception as e:
@@ -107,6 +115,7 @@ def ingest(document_id: str, filename: str) -> dict:
 
         # Stage 3: Generate embeddings
         logger.debug(f"[{document_id}] Embedding stage starting")
+        on_stage("embedding")
         try:
             embedded_chunks = embedding_service.embed(chunks)
         except Exception as e:

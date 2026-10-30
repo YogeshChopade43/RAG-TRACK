@@ -56,7 +56,12 @@ export function TracePanel({ traceId }: { traceId: string }) {
           <div className="overflow-x-auto border-b p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabsList variant="line">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="retrieval">Retrieval · {rankedChunks(state.trace).length}</TabsTrigger>
+              <TabsTrigger value="retrieval">
+                Retrieval ·{" "}
+                {state.trace.candidates?.length
+                  ? `${state.trace.candidates.filter((c) => c.status === "kept").length}/${state.trace.candidates.length}`
+                  : rankedChunks(state.trace).length}
+              </TabsTrigger>
               <TabsTrigger value="context">Context</TabsTrigger>
               <TabsTrigger value="check">Answer check</TabsTrigger>
             </TabsList>

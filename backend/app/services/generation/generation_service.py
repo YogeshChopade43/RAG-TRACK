@@ -64,5 +64,5 @@ class GenerationService:
         system_prompt, user_prompt = self._build_prompts(
             question, retrieved_chunks, is_overview=is_overview
         )
-        raw_answer = self.llm.chat(system_prompt, user_prompt, api_key=api_key, model=model)
+        raw_answer = self.llm.chat(system_prompt, user_prompt, api_key=api_key, model=model, purpose="answer")
         return self._normalize_answer(raw_answer)

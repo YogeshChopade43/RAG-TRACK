@@ -165,7 +165,7 @@ class QueryRewriteService:
             - Do NOT return a sentence
             """
         try:
-            rewritten = self.llm.chat(system_prompt, question, api_key=api_key, model=model)
+            rewritten = self.llm.chat(system_prompt, question, api_key=api_key, model=model, purpose="rewrite")
 
             cleaned = self._clean_output(rewritten)
 

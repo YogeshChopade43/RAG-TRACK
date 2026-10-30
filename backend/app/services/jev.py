@@ -12,12 +12,14 @@ functions return None and the pipeline falls back to its heuristics.
 """
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import httpx
 
 from app.core.config import settings
+from app.services.observability.call_log import call_entry, record_call
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +46,12 @@ def _noul(instructions: Any, true: str, false: str) -> dict:
     return {"type": "noul", "instructions": instructions, "criteria": {"true": true, "false": false}}
 
 
-def decide(state: Any, questions: dict, api_key: Optional[str] = None) -> dict[str, float]:
+def decide(state: Any, questions: dict, api_key: Optional[str] = None, purpose: str = "jev") -> dict[str, float]:
     """Ask Jev a batch of Noul questions about one state. Returns {question_id: probability}."""
     key = api_key or settings.openrouter_api_key
     if not settings.jev_enabled or not key:
         raise JevError("Jev disabled or no OpenRouter API key")
+    started = time.perf_counter()
     try:
         resp = httpx.post(
             settings.jev_url,
@@ -57,10 +60,20 @@ def decide(state: Any, questions: dict, api_key: Optional[str] = None) -> dict[s
             timeout=settings.jev_timeout_seconds,
         )
         resp.raise_for_status()
-        answers = resp.json()["answers"]
-        return {qid: float(answers[qid]["noul"]) for qid in questions}
+        body = resp.json()
+        scores = {qid: float(body["answers"][qid]["noul"]) for qid in questions}
     except Exception as e:
+        record_call(call_entry("jev", purpose, settings.jev_model, started, error=str(e)))
         raise JevError(f"Jev request failed: {e}") from e
+    # Usage is recorded only if the decisions API reports it; never estimated
+    usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+    record_call(call_entry(
+        "jev", purpose, settings.jev_model, started,
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        cost_usd=usage.get("cost"),
+    ))
+    return scores
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +117,7 @@ class QueryAnalysis:
 def analyze_query(question: str, api_key: Optional[str] = None) -> Optional[QueryAnalysis]:
     """Decide decomposition, rewrite and input safety in one Jev call. None if Jev is unavailable."""
     try:
-        scores = decide(question, _QUERY_QUESTIONS, api_key)
+        scores = decide(question, _QUERY_QUESTIONS, api_key, purpose="analysis")
     except JevError as e:
         logger.warning(f"Jev query analysis unavailable, using heuristics: {e}")
         return None
@@ -128,7 +141,7 @@ def rewrite_decisions(
         for i, q in enumerate(sub_queries)
     }
     try:
-        scores = decide({"original_user_question": question}, questions, api_key)
+        scores = decide({"original_user_question": question}, questions, api_key, purpose="rewrite_decisions")
     except JevError as e:
         logger.warning(f"Jev rewrite decisions unavailable, using heuristics: {e}")
         return None
@@ -156,6 +169,7 @@ class JevReranker:
         top_k: Optional[int] = None,
         return_all: bool = False,
         api_key: Optional[str] = None,
+        min_relevance: Optional[float] = None,
     ) -> Optional[dict[str, Any]]:
         """
         Returns the retrievers' reranking contract (top_k_items, ranking_summary,
@@ -174,7 +188,7 @@ class JevReranker:
             for i, c in enumerate(chunks)
         }
         try:
-            scores = decide({"user_question": query}, questions, api_key)
+            scores = decide({"user_question": query}, questions, api_key, purpose="rerank")
         except JevError as e:
             logger.warning(f"Jev rerank unavailable, keeping retrieval order: {e}")
             return None
@@ -197,7 +211,7 @@ class JevReranker:
             }
             for rank, (p, c) in enumerate(ranked, start=1)
         ]
-        threshold = settings.jev_min_relevance
+        threshold = settings.jev_min_relevance if min_relevance is None else min_relevance
         any_relevant = items[0]["score"] >= threshold
         relevant = [it for i, it in enumerate(items) if it["score"] >= threshold or (any_relevant and i < MIN_KEEP)]
         top = relevant if return_all or not top_k else relevant[:top_k]
@@ -250,7 +264,7 @@ def guard_answer(
         "answer": answer,
     }
     try:
-        scores = decide(state, _ANSWER_QUESTIONS, api_key)
+        scores = decide(state, _ANSWER_QUESTIONS, api_key, purpose="guard")
     except JevError as e:
         logger.warning(f"Jev answer guard unavailable, returning answer unchecked: {e}")
         return answer, {}
@@ -259,3 +273,29 @@ def guard_answer(
     if scores["unsupported"] >= UNSUPPORTED_THRESHOLD:
         return answer + UNSUPPORTED_WARNING, scores
     return answer, scores
+
+
+# ---------------------------------------------------------------------------
+# Stress-test grading: does an answer say the same thing as the reference?
+# ---------------------------------------------------------------------------
+
+_GRADE_QUESTION = _noul(
+    "Does the answer state the same facts as the reference answer for this question?",
+    "The answer gives the reference's facts, possibly worded differently or with extra correct detail.",
+    "The answer is missing, refuses, contradicts the reference, or states different facts.",
+)
+
+
+def grade_answer(question: str, expected: str, answer: str, api_key: Optional[str] = None) -> Optional[float]:
+    """Probability that `answer` matches `expected`. None if Jev is unavailable."""
+    try:
+        scores = decide(
+            {"question": question, "reference_answer": expected, "answer": answer},
+            {"same": _GRADE_QUESTION},
+            api_key,
+            purpose="grade",
+        )
+    except JevError as e:
+        logger.warning(f"Jev grading unavailable: {e}")
+        return None
+    return scores["same"]

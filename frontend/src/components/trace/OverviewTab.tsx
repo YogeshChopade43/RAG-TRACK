@@ -1,5 +1,7 @@
+import { fallbackDecisions } from "@/lib/trace";
 import type { Trace } from "@/lib/types";
 import { cn, formatMs } from "@/lib/utils";
+import { CallTimeline } from "./CallTimeline";
 
 const STAGES = ["decomposition", "rewrite", "retrieval", "generation"];
 
@@ -23,8 +25,25 @@ export function OverviewTab({ trace }: { trace: Trace }) {
     return typeof score === "number" ? [{ ...d, score }] : [];
   });
 
+  const fallbacks = fallbackDecisions(trace);
+
   return (
     <div className="grid gap-6">
+      {(fallbacks.length > 0 || trace.answer_status === "not_found") && (
+        <div className="flex flex-wrap gap-2 font-mono text-[11px]">
+          {trace.answer_status === "not_found" && (
+            <span className="rounded-full border px-2 py-0.5">not found</span>
+          )}
+          {fallbacks.length > 0 && (
+            <span
+              className="rounded-full border border-highlight/60 px-2 py-0.5 text-highlight"
+              title="Jev was unavailable for these decisions, so the built-in rules made them"
+            >
+              Jev fallback: {fallbacks.join(", ")}
+            </span>
+          )}
+        </div>
+      )}
       <div className="grid gap-2">
         <div className="flex items-baseline justify-between text-sm">
           <h3 className="font-medium">Stage timings</h3>
@@ -53,6 +72,14 @@ export function OverviewTab({ trace }: { trace: Trace }) {
           })}
         </ul>
       </div>
+
+      {trace.settings_used?.source === "document" && (
+        <p className="font-mono text-xs text-muted-foreground">
+          Document settings: relevance bar {trace.settings_used.min_relevance} · top-k {trace.settings_used.top_k}
+        </p>
+      )}
+
+      {trace.calls?.length ? <CallTimeline calls={trace.calls} /> : null}
 
       <div className="grid gap-2">
         <h3 className="text-sm font-medium">Jev decisions</h3>

@@ -97,3 +97,34 @@ class TestParsingService:
             parsed_file = parsed_dir / f"{document_id}.json"
             if parsed_file.exists():
                 parsed_file.unlink()
+
+
+DOCLING_PAGES = [{"page_number": None, "text": "# Charter\n\n| A | B |\n| --- | --- |", "source": "text"}]
+
+
+def test_docx_dispatches_to_docling_and_keeps_markdown(tmp_path):
+    import json
+
+    raw = tmp_path / "raw" / "doc-1"
+    raw.mkdir(parents=True)
+    (raw / "plan.docx").write_bytes(b"x")
+    with patch("app.services.parsing.parsing_service.RAW_BASE", tmp_path / "raw"), \
+         patch("app.services.parsing.parsing_service.PARSED_BASE", tmp_path / "parsed"), \
+         patch("app.services.parsing.parsing_service.parse_with_docling", return_value=DOCLING_PAGES) as dl:
+        out = ParsingService().parse("doc-1")
+    assert dl.call_args.args[1] == "docx"
+    assert "| --- | --- |" in out["pages"][0]["text"].splitlines()
+    written = json.loads((tmp_path / "parsed" / "doc-1.json").read_text(encoding="utf-8"))
+    assert written["pages"][0]["source"] == "text"
+
+
+def test_txt_still_uses_txt_parser(tmp_path):
+    raw = tmp_path / "raw" / "doc-2"
+    raw.mkdir(parents=True)
+    (raw / "notes.txt").write_text("Plain notes here.", encoding="utf-8")
+    with patch("app.services.parsing.parsing_service.RAW_BASE", tmp_path / "raw"), \
+         patch("app.services.parsing.parsing_service.PARSED_BASE", tmp_path / "parsed"), \
+         patch("app.services.parsing.parsing_service.parse_with_docling") as dl:
+        out = ParsingService().parse("doc-2")
+    dl.assert_not_called()
+    assert out["pages"][0]["text"] == "Plain notes here"  # cleaner drops a trailing period, as before

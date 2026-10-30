@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { rankedChunks } from "@/lib/trace";
+import { CandidateList } from "./CandidateList";
 import type { Trace, TraceChunk } from "@/lib/types";
 
 const PREVIEW_CHARS = 160;
@@ -7,7 +8,10 @@ const PREVIEW_CHARS = 160;
 function ChunkCard({ chunk, rank, reranked }: { chunk: TraceChunk; rank: number; reranked: boolean }) {
   const [open, setOpen] = useState(false);
   const long = chunk.content.length > PREVIEW_CHARS;
-  const meta = chunk.metadata as { file_name?: string; page_number?: number | null };
+  const meta = chunk.metadata as {
+    file_name?: string;
+    page_number?: number | null;
+  };
   const where = [meta.file_name, meta.page_number ? `p.${meta.page_number}` : null].filter(Boolean).join(" · ");
 
   return (
@@ -46,11 +50,16 @@ function ChunkCard({ chunk, rank, reranked }: { chunk: TraceChunk; rank: number;
 
 export function RetrievalTab({ trace }: { trace: Trace }) {
   const chunks = rankedChunks(trace);
-  const fusion = trace.fusion_details as
-    | { vector_count?: number; bm25_count?: number; fused_count?: number; fusion_weights?: Record<string, number> }
-    | null;
+  const fusion = trace.fusion_details as {
+    vector_count?: number;
+    bm25_count?: number;
+    fused_count?: number;
+    fusion_weights?: Record<string, number>;
+  } | null;
   const subQueries = trace.decomposed_queries.filter((q) => q !== trace.original_query);
-  const rewritten = trace.rewritten_query && trace.rewritten_query !== trace.original_query ? trace.rewritten_query : null;
+  const rewritten =
+    trace.rewritten_query && trace.rewritten_query !== trace.original_query ? trace.rewritten_query : null;
+  const variants = (trace.expanded_queries ?? []).filter((q) => q !== rewritten && q !== trace.original_query);
 
   return (
     <div className="grid gap-5">
@@ -75,6 +84,18 @@ export function RetrievalTab({ trace }: { trace: Trace }) {
             </dd>
           </>
         )}
+        {variants.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">Search variants</dt>
+            <dd>
+              <ul className="list-disc pl-4 font-mono text-xs leading-5">
+                {variants.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
         {fusion && (
           <>
             <dt className="text-muted-foreground">Hybrid search</dt>
@@ -89,20 +110,29 @@ export function RetrievalTab({ trace }: { trace: Trace }) {
         )}
       </dl>
 
-      <div className="grid gap-2">
-        <h3 className="text-sm font-medium">
-          Chunks sent to the model <span className="text-muted-foreground">({chunks.length})</span>
-        </h3>
-        {chunks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No chunks were retrieved.</p>
-        ) : (
-          <ol className="grid gap-2">
-            {chunks.map((c, i) => (
-              <ChunkCard key={c.chunk_id} chunk={c} rank={c.rank ?? i + 1} reranked={trace.reranked_chunks.length > 0} />
-            ))}
-          </ol>
-        )}
-      </div>
+      {trace.candidates?.length ? (
+        <CandidateList candidates={trace.candidates} multipleQueries={(trace.expanded_queries?.length ?? 0) > 1} />
+      ) : (
+        <div className="grid gap-2">
+          <h3 className="text-sm font-medium">
+            Chunks sent to the model <span className="text-muted-foreground">({chunks.length})</span>
+          </h3>
+          {chunks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No chunks were retrieved.</p>
+          ) : (
+            <ol className="grid gap-2">
+              {chunks.map((c, i) => (
+                <ChunkCard
+                  key={c.chunk_id}
+                  chunk={c}
+                  rank={c.rank ?? i + 1}
+                  reranked={trace.reranked_chunks.length > 0}
+                />
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
     </div>
   );
 }

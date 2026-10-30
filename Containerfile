@@ -17,6 +17,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --default-timeout=300 \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
+# Docling's layout, table and OCR models, baked in so ingestion never downloads at runtime
+RUN docling-tools models download -q -o /opt/docling-models layout tableformer rapidocr
 
 # ===== Stage 3: Runtime Image =====
 FROM python:3.11-slim
@@ -31,6 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy Python dependencies from builder stage (packages + console scripts)
 COPY --from=backend-deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=backend-deps /usr/local/bin /usr/local/bin
+COPY --from=backend-deps /opt/docling-models /opt/docling-models
+ENV DOCLING_ARTIFACTS_PATH=/opt/docling-models
 
 # --- Application environment ---
 # PYTHONPATH=/app/backend so that `app.main:app` resolves to backend/app/main.py
@@ -65,6 +69,7 @@ RUN mkdir -p \
     data/parsed \
     data/embeddings \
     data/traces \
+    data/ingest_status \
     && chown -R ragtrack:ragtrack /app
 
 # Switch to non-root user

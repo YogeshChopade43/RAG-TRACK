@@ -77,3 +77,11 @@ class TraceModel(BaseModel):
 
     # Extra stage data (e.g. Jev decision scores)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # Transparency (optional: older traces lack them)
+    candidates: Optional[list[dict[str, Any]]] = None  # every chunk found, scores, kept/dropped + reason
+    expanded_queries: Optional[list[str]] = None
+    calls: Optional[list[dict[str, Any]]] = None  # one entry per LLM / Jev call (tokens, cost, timing)
+    decision_sources: Optional[dict[str, str]] = None  # analysis / rerank / guard: jev or fallback
+    answer_status: Optional[str] = None  # answered | not_found | error
+    settings_used: Optional[dict[str, Any]] = None  # top_k, min_relevance, source: default | document
